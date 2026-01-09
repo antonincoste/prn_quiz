@@ -247,7 +247,7 @@ const GameScreen = ({ actress, score, timeLeft, onSubmit, onSkip }) => {
     setInput('');
   };
 
-  const timePercentage = (timeLeft / 60) * 100;
+  const timePercentage = (timeLeft / 5) * 100;
   const isLowTime = timeLeft <= 10;
 
   return (
@@ -374,7 +374,9 @@ const ResultScreen = ({ score, totalAnswered, onRestart }) => {
 
   const message = getMessage();
 
-  const handleSubscribe = (e) => {
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleSubscribe = async (e) => {
     e.preventDefault();
     setError('');
     
@@ -384,17 +386,25 @@ const ResultScreen = ({ score, totalAnswered, onRestart }) => {
       return;
     }
 
-    // Local storage for demo
-    const subscribers = JSON.parse(localStorage.getItem('quiz_subscribers') || '[]');
-    if (!subscribers.includes(email)) {
-      subscribers.push(email);
-      localStorage.setItem('quiz_subscribers', JSON.stringify(subscribers));
+    setIsLoading(true);
+    
+    try {
+      const response = await fetch('/api/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to subscribe');
+      }
+
+      setSubscribed(true);
+    } catch (err) {
+      setError('Something went wrong. Try again!');
+    } finally {
+      setIsLoading(false);
     }
-    
-    console.log('📧 New subscriber:', email);
-    console.log('📋 Subscribers list:', subscribers);
-    
-    setSubscribed(true);
   };
 
   return (
@@ -448,12 +458,14 @@ const ResultScreen = ({ score, totalAnswered, onRestart }) => {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="your@email.com"
                 className="flex-1 px-4 py-3 bg-gray-900 border border-gray-600 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500 transition-colors"
+                disabled={isLoading}
               />
               <button
                 type="submit"
-                className="px-6 py-3 bg-gradient-to-r from-orange-500 to-pink-500 rounded-xl font-bold text-white hover:opacity-90 transition-opacity"
+                disabled={isLoading}
+                className="px-6 py-3 bg-gradient-to-r from-orange-500 to-pink-500 rounded-xl font-bold text-white hover:opacity-90 transition-opacity disabled:opacity-50"
               >
-                OK
+                {isLoading ? '...' : 'OK'}
               </button>
             </form>
             {error && <p className="text-red-400 text-sm mt-2">{error}</p>}
@@ -483,7 +495,7 @@ export default function ActressQuiz() {
     skipActress,
   } = useGame();
 
-  const { timeLeft, start: startTimer } = useTimer(60, endGame);
+  const { timeLeft, start: startTimer } = useTimer(5, endGame);
 
   const handleStart = () => {
     startGame();
