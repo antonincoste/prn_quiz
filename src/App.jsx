@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { ACTRESS_DB } from './actress';
 
 // Fonction de distance de Levenshtein
 const levenshteinDistance = (str1, str2) => {
@@ -50,6 +49,19 @@ const checkAnswer = (input, actress) => {
   });
 };
 
+// Fonction pour envoyer les stats
+const updateStats = async (actressId, guessed) => {
+  try {
+    await fetch('/api/stats', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ actressId, guessed }),
+    });
+  } catch (error) {
+    console.error('Failed to update stats:', error);
+  }
+};
+
 // Hook personnalisé pour le timer
 const useTimer = (initialTime, onEnd) => {
   const [timeLeft, setTimeLeft] = useState(initialTime);
@@ -95,16 +107,38 @@ const useGame = () => {
   const [currentActress, setCurrentActress] = useState(null);
   const [usedActressIds, setUsedActressIds] = useState([]);
   const [totalAnswered, setTotalAnswered] = useState(0);
+  const [actresses, setActresses] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Charger les actrices depuis l'API au démarrage
+  useEffect(() => {
+    const fetchActresses = async () => {
+      try {
+        const response = await fetch('/api/actresses');
+        if (!response.ok) throw new Error('Failed to fetch actresses');
+        const data = await response.json();
+        setActresses(data.actresses);
+        setIsLoading(false);
+      } catch (err) {
+        console.error('Error loading actresses:', err);
+        setError('Failed to load data. Please refresh.');
+        setIsLoading(false);
+      }
+    };
+    fetchActresses();
+  }, []);
 
   const getRandomActress = (excludeIds = []) => {
-    const available = ACTRESS_DB.filter(p => !excludeIds.includes(p.id));
+    const available = actresses.filter(p => !excludeIds.includes(p.id));
     if (available.length === 0) {
-      return ACTRESS_DB[Math.floor(Math.random() * ACTRESS_DB.length)];
+      return actresses[Math.floor(Math.random() * actresses.length)];
     }
     return available[Math.floor(Math.random() * available.length)];
   };
 
   const startGame = () => {
+    if (actresses.length === 0) return;
     const firstActress = getRandomActress([]);
     setScore(0);
     setUsedActressIds([firstActress.id]);
@@ -121,21 +155,20 @@ const useGame = () => {
     if (!currentActress || gameState !== 'playing') return false;
     const isCorrect = checkAnswer(input, currentActress);
     setTotalAnswered((prev) => prev + 1);
+    
+    // Envoyer les stats
+    updateStats(currentActress.id, isCorrect);
+    
     if (!isCorrect) return false;
     setScore((prev) => prev + 1);
     setUsedActressIds((prev) => {
-      // 1) Mark current actress as "already seen" (no duplicates)
       const usedSet = new Set(prev);
       usedSet.add(currentActress.id);
-      // 2) Si on a tout utilisé, on reset (pour repartir)
       const used = Array.from(usedSet);
-      const shouldReset = used.length >= ACTRESS_DB.length;
+      const shouldReset = used.length >= actresses.length;
       const excludeIds = shouldReset ? [] : used;
-      // 3) Pick next actress excluding already used ones
       const nextActress = getRandomActress(excludeIds);
-      // 4) Update current actress
       setCurrentActress(nextActress);
-      // 5) Retourner la nouvelle liste "used"
       return shouldReset ? [nextActress.id] : [...used, nextActress.id];
     });
     return true;
@@ -144,11 +177,15 @@ const useGame = () => {
   const skipActress = () => {
     if (!currentActress || gameState !== 'playing') return;
     setTotalAnswered((prev) => prev + 1);
+    
+    // Envoyer les stats (skip = pas trouvé)
+    updateStats(currentActress.id, false);
+    
     setUsedActressIds((prev) => {
       const usedSet = new Set(prev);
       usedSet.add(currentActress.id);
       const used = Array.from(usedSet);
-      const shouldReset = used.length >= ACTRESS_DB.length;
+      const shouldReset = used.length >= actresses.length;
       const excludeIds = shouldReset ? [] : used;
       const nextActress = getRandomActress(excludeIds);
       setCurrentActress(nextActress);
@@ -161,6 +198,9 @@ const useGame = () => {
     score,
     currentActress,
     totalAnswered,
+    actresses,
+    isLoading,
+    error,
     startGame,
     endGame,
     submitAnswer,
@@ -169,7 +209,7 @@ const useGame = () => {
 };
 
 // Start screen component
-const StartScreen = ({ onStart }) => {
+const StartScreen = ({ onStart, isLoading, error, actressCount }) => {
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-8 text-center">
       <div className="relative">
@@ -186,14 +226,24 @@ const StartScreen = ({ onStart }) => {
       <p className="text-xl md:text-2xl text-gray-300 mt-8 mb-12 max-w-md font-light">
         Name as many actresses as you can in <span className="text-cyan-400 font-bold">60 seconds</span>
       </p>
-      
-      <button
-        onClick={onStart}
-        className="group relative px-12 py-5 bg-gradient-to-r from-emerald-500 to-cyan-500 rounded-2xl font-bold text-xl text-gray-900 transform hover:scale-105 transition-all duration-300 shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/50"
-      >
-        <span className="relative z-10">PLAY</span>
-        <div className="absolute inset-0 bg-white rounded-2xl opacity-0 group-hover:opacity-20 transition-opacity" />
-      </button>
+
+      {error ? (
+        <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-xl mb-8">
+          <p className="text-red-400">{error}</p>
+        </div>
+      ) : isLoading ? (
+        <div className="px-12 py-5 text-xl text-gray-400">
+          Loading...
+        </div>
+      ) : (
+        <button
+          onClick={onStart}
+          className="group relative px-12 py-5 bg-gradient-to-r from-emerald-500 to-cyan-500 rounded-2xl font-bold text-xl text-gray-900 transform hover:scale-105 transition-all duration-300 shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/50"
+        >
+          <span className="relative z-10">PLAY</span>
+          <div className="absolute inset-0 bg-white rounded-2xl opacity-0 group-hover:opacity-20 transition-opacity" />
+        </button>
+      )}
       
       <div className="mt-16 flex gap-8 text-gray-500 text-sm">
         <div className="flex items-center gap-2">
@@ -206,13 +256,11 @@ const StartScreen = ({ onStart }) => {
         </div>
       </div>
 
-      {/* Developer note */}
-      <div className="mt-8 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-xl max-w-md">
-        <p className="text-yellow-400 text-sm">
-          ⚠️ <strong>Demo mode</strong>: Images are placeholders. 
-          Replace URLs in ACTRESS_DB with your own actress images.
+      {!isLoading && !error && (
+        <p className="mt-8 text-gray-600 text-sm">
+          {actressCount} actresses loaded
         </p>
-      </div>
+      )}
     </div>
   );
 };
@@ -247,12 +295,12 @@ const GameScreen = ({ actress, score, timeLeft, onSubmit, onSkip }) => {
     setInput('');
   };
 
-  const timePercentage = (timeLeft / 5) * 100;
+  const timePercentage = (timeLeft / 60) * 100;
   const isLowTime = timeLeft <= 10;
 
   return (
     <div className={`min-h-screen flex flex-col p-4 md:p-8 transition-colors duration-300 ${flash ? 'bg-emerald-900/30' : ''}`}>
-      {/* Header avec score et timer */}
+      {/* Header with score and timer */}
       <div className="flex justify-between items-center mb-8">
         <div className="flex items-center gap-3">
           <div className="text-5xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400">
@@ -294,7 +342,7 @@ const GameScreen = ({ actress, score, timeLeft, onSubmit, onSkip }) => {
                   }}
                 />
                 <div className="hidden w-full h-full items-center justify-center text-6xl bg-gradient-to-br from-gray-700 to-gray-800">
-                  ⚽
+                  ⭐
                 </div>
               </>
             )}
@@ -304,14 +352,7 @@ const GameScreen = ({ actress, score, timeLeft, onSubmit, onSkip }) => {
           </div>
         </div>
 
-        {/* Hint: actress name (for demo mode) */}
-        {actress && (
-          <div className="mb-4 text-xs text-gray-600">
-            [Démo: {actress.firstName} {actress.lastName}]
-          </div>
-        )}
-
-        {/* Input de réponse */}
+        {/* Input */}
         <form onSubmit={handleSubmit} className="w-full max-w-md">
           <div className={`relative ${shake ? 'animate-shake' : ''}`}>
             <input
@@ -334,7 +375,7 @@ const GameScreen = ({ actress, score, timeLeft, onSubmit, onSkip }) => {
           </div>
         </form>
 
-        {/* Bouton passer */}
+        {/* Skip button */}
         <button
           onClick={onSkip}
           className="mt-4 text-gray-500 hover:text-gray-300 transition-colors text-sm"
@@ -362,6 +403,7 @@ const ResultScreen = ({ score, totalAnswered, onRestart }) => {
   const [email, setEmail] = useState('');
   const [subscribed, setSubscribed] = useState(false);
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   const accuracy = totalAnswered > 0 ? Math.round((score / totalAnswered) * 100) : 0;
 
@@ -373,8 +415,6 @@ const ResultScreen = ({ score, totalAnswered, onRestart }) => {
   };
 
   const message = getMessage();
-
-  const [isLoading, setIsLoading] = useState(false);
 
   const handleSubscribe = async (e) => {
     e.preventDefault();
@@ -489,13 +529,16 @@ export default function ActressQuiz() {
     score,
     currentActress,
     totalAnswered,
+    actresses,
+    isLoading,
+    error,
     startGame,
     endGame,
     submitAnswer,
     skipActress,
   } = useGame();
 
-  const { timeLeft, start: startTimer } = useTimer(5, endGame);
+  const { timeLeft, start: startTimer } = useTimer(60, endGame);
 
   const handleStart = () => {
     startGame();
@@ -507,7 +550,12 @@ export default function ActressQuiz() {
       <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
       
       {gameState === 'idle' && (
-        <StartScreen onStart={handleStart} />
+        <StartScreen 
+          onStart={handleStart} 
+          isLoading={isLoading} 
+          error={error}
+          actressCount={actresses.length}
+        />
       )}
       
       {gameState === 'playing' && (
