@@ -1,17 +1,17 @@
 import { sql } from '@vercel/postgres';
-import { NextResponse } from 'next/server';
 
-export async function POST(request) {
+export default async function handler(request, response) {
+  if (request.method !== 'POST') {
+    return response.status(405).json({ error: 'Method not allowed' });
+  }
+
   try {
-    const { email } = await request.json();
+    const { email } = request.body;
 
     // Validation basique
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!email || !emailRegex.test(email)) {
-      return NextResponse.json(
-        { error: 'Invalid email' },
-        { status: 400 }
-      );
+      return response.status(400).json({ error: 'Invalid email' });
     }
 
     // Insert dans la DB (UNIQUE constraint gère les doublons)
@@ -21,12 +21,9 @@ export async function POST(request) {
       ON CONFLICT (email) DO NOTHING
     `;
 
-    return NextResponse.json({ success: true });
+    return response.status(200).json({ success: true });
   } catch (error) {
     console.error('Subscribe error:', error);
-    return NextResponse.json(
-      { error: 'Server error' },
-      { status: 500 }
-    );
+    return response.status(500).json({ error: 'Server error' });
   }
 }
