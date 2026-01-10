@@ -116,14 +116,22 @@ const useGame = () => {
     const fetchActresses = async () => {
       try {
         const response = await fetch('/api/actresses');
-        if (!response.ok) throw new Error('Failed to fetch actresses');
+        if (!response.ok) throw new Error('API not available');
         const data = await response.json();
         setActresses(data.actresses);
         setIsLoading(false);
       } catch (err) {
-        console.error('Error loading actresses:', err);
-        setError('Failed to load data. Please refresh.');
-        setIsLoading(false);
+        // Fallback: import local en dev
+        console.log('API not available, using local data');
+        try {
+          const { ACTRESS_DB } = await import('./actress.js');
+          setActresses(ACTRESS_DB);
+          setIsLoading(false);
+        } catch (importErr) {
+          console.error('Error loading local data:', importErr);
+          setError('Failed to load data. Please refresh.');
+          setIsLoading(false);
+        }
       }
     };
     fetchActresses();
@@ -211,56 +219,56 @@ const useGame = () => {
 // Start screen component
 const StartScreen = ({ onStart, isLoading, error, actressCount }) => {
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen p-8 text-center">
-      <div className="relative">
-        <h1 className="text-7xl md:text-9xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-br from-emerald-400 via-cyan-400 to-blue-500 mb-2">
-          ACTRESS
-        </h1>
-        <h1 className="text-7xl md:text-9xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-br from-yellow-400 via-orange-400 to-red-500 -mt-4 md:-mt-8">
-          QUIZ
-        </h1>
-        <div className="absolute -top-4 -right-4 w-8 h-8 bg-yellow-400 rounded-full animate-bounce" />
-        <div className="absolute -bottom-2 -left-6 w-6 h-6 bg-emerald-400 rounded-full animate-pulse" />
-      </div>
+    <div className="flex flex-col items-center justify-center min-h-screen p-8 text-center relative overflow-hidden">
+      {/* Background glow effects */}
+      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-pink-300/20 rounded-full blur-3xl" />
+      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-pink-200/20 rounded-full blur-3xl" />
       
-      <p className="text-xl md:text-2xl text-gray-300 mt-8 mb-12 max-w-md font-light">
-        Name as many actresses as you can in <span className="text-cyan-400 font-bold">60 seconds</span>
-      </p>
-
-      {error ? (
-        <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-xl mb-8">
-          <p className="text-red-400">{error}</p>
+      <div className="relative z-10 flex flex-col items-center">
+        <div className="relative">
+          <h1 className="text-6xl md:text-8xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-pink-600 mb-2">
+            THE P0RN
+          </h1>
+          <h1 className="text-6xl md:text-8xl font-black tracking-tighter text-stone-800 -mt-4 md:-mt-6">
+            QUIZ
+          </h1>
+          <div className="absolute -top-4 -right-4 w-8 h-8 bg-pink-400 rounded-full animate-pulse shadow-[0_0_20px_rgba(244,114,182,0.6)]" />
+          <div className="absolute -bottom-2 -left-6 w-6 h-6 bg-pink-300 rounded-full animate-pulse shadow-[0_0_20px_rgba(249,168,212,0.6)]" />
         </div>
-      ) : isLoading ? (
-        <div className="px-12 py-5 text-xl text-gray-400">
-          Loading...
-        </div>
-      ) : (
-        <button
-          onClick={onStart}
-          className="group relative px-12 py-5 bg-gradient-to-r from-emerald-500 to-cyan-500 rounded-2xl font-bold text-xl text-gray-900 transform hover:scale-105 transition-all duration-300 shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/50"
-        >
-          <span className="relative z-10">PLAY</span>
-          <div className="absolute inset-0 bg-white rounded-2xl opacity-0 group-hover:opacity-20 transition-opacity" />
-        </button>
-      )}
-      
-      <div className="mt-16 flex gap-8 text-gray-500 text-sm">
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 bg-emerald-500 rounded-full" />
-          <span>Full name required</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 bg-cyan-500 rounded-full" />
-          <span>Typos allowed</span>
-        </div>
-      </div>
-
-      {!isLoading && !error && (
-        <p className="mt-8 text-gray-600 text-sm">
-          {actressCount} actresses loaded
+        
+        <p className="text-xl md:text-2xl text-stone-600 mt-8 mb-12 max-w-md font-light text-center">
+          Name as many actresses as you can in <span className="text-pink-500 font-bold">60 seconds</span>
         </p>
-      )}
+
+        {error ? (
+          <div className="p-4 bg-red-100 border border-red-300 rounded-xl mb-8">
+            <p className="text-red-500">{error}</p>
+          </div>
+        ) : isLoading ? (
+          <div className="px-12 py-5 text-xl text-stone-400">
+            Loading...
+          </div>
+        ) : (
+          <button
+            onClick={onStart}
+            className="group relative px-12 py-5 bg-gradient-to-r from-pink-400 to-pink-500 rounded-2xl font-bold text-xl text-white transform hover:scale-105 transition-all duration-300 shadow-[0_0_30px_rgba(244,114,182,0.4)] hover:shadow-[0_0_50px_rgba(244,114,182,0.6)]"
+          >
+            <span className="relative z-10">PLAY</span>
+            <div className="absolute inset-0 bg-white rounded-2xl opacity-0 group-hover:opacity-10 transition-opacity" />
+          </button>
+        )}
+        
+        <div className="mt-16 flex justify-center gap-8 text-stone-500 text-sm">
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 bg-pink-400 rounded-full shadow-[0_0_10px_rgba(244,114,182,0.6)]" />
+            <span>Full name required</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 bg-pink-300 rounded-full shadow-[0_0_10px_rgba(249,168,212,0.6)]" />
+            <span>Typos allowed</span>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
@@ -270,6 +278,7 @@ const GameScreen = ({ actress, score, timeLeft, onSubmit, onSkip }) => {
   const [input, setInput] = useState('');
   const [shake, setShake] = useState(false);
   const [flash, setFlash] = useState(false);
+  const [imageError, setImageError] = useState(false);
   const inputRef = useRef(null);
 
   useEffect(() => {
@@ -278,6 +287,7 @@ const GameScreen = ({ actress, score, timeLeft, onSubmit, onSkip }) => {
 
   useEffect(() => {
     setInput('');
+    setImageError(false);
   }, [actress]);
 
   const handleSubmit = (e) => {
@@ -299,26 +309,29 @@ const GameScreen = ({ actress, score, timeLeft, onSubmit, onSkip }) => {
   const isLowTime = timeLeft <= 10;
 
   return (
-    <div className={`min-h-screen flex flex-col p-4 md:p-8 transition-colors duration-300 ${flash ? 'bg-emerald-900/30' : ''}`}>
+    <div className={`min-h-screen flex flex-col p-4 md:p-8 transition-colors duration-300 relative overflow-hidden ${flash ? 'bg-pink-100' : ''}`}>
+      {/* Background glow */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[500px] h-[500px] bg-pink-200/30 rounded-full blur-3xl pointer-events-none" />
+      
       {/* Header with score and timer */}
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex justify-between items-center mb-8 relative z-10">
         <div className="flex items-center gap-3">
-          <div className="text-5xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400">
+          <div className="text-5xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-pink-500">
             {score}
           </div>
-          <div className="text-gray-500 text-sm font-medium">
+          <div className="text-stone-500 text-sm font-medium">
             SCORE
           </div>
         </div>
         
         <div className="flex flex-col items-end gap-2">
-          <div className={`text-4xl md:text-5xl font-black tabular-nums ${isLowTime ? 'text-red-500 animate-pulse' : 'text-white'}`}>
+          <div className={`text-4xl md:text-5xl font-black tabular-nums ${isLowTime ? 'text-red-500 animate-pulse' : 'text-stone-800'}`}>
             {timeLeft}
-            <span className="text-lg text-gray-500 ml-1">s</span>
+            <span className="text-lg text-stone-400 ml-1">s</span>
           </div>
-          <div className="w-32 md:w-48 h-2 bg-gray-800 rounded-full overflow-hidden">
+          <div className="w-32 md:w-48 h-2 bg-stone-200 rounded-full overflow-hidden">
             <div 
-              className={`h-full transition-all duration-1000 ease-linear rounded-full ${isLowTime ? 'bg-red-500' : 'bg-gradient-to-r from-emerald-500 to-cyan-500'}`}
+              className={`h-full transition-all duration-1000 ease-linear rounded-full ${isLowTime ? 'bg-red-500' : 'bg-gradient-to-r from-pink-400 to-pink-500'}`}
               style={{ width: `${timePercentage}%` }}
             />
           </div>
@@ -326,28 +339,26 @@ const GameScreen = ({ actress, score, timeLeft, onSubmit, onSkip }) => {
       </div>
 
       {/* Actress image */}
-      <div className="flex-1 flex flex-col items-center justify-center">
+      <div className="flex-1 flex flex-col items-center justify-center relative z-10">
         <div className="relative mb-8">
-          <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/20 to-cyan-500/20 rounded-3xl blur-2xl transform scale-110" />
-          <div className="relative w-44 h-[246px] md:w-56 md:h-[314px] lg:w-64 lg:h-[358px] rounded-3xl overflow-hidden border-4 border-gray-700 shadow-2xl bg-gray-800">
-            {actress && (
-              <>
-                <img
-                  src={actress.image}
-                  alt="Who is this actress?"
-                  className="w-full h-full object-cover object-top"
-                  onError={(e) => {
-                    e.target.style.display = 'none';
-                    e.target.nextSibling.style.display = 'flex';
-                  }}
-                />
-                <div className="hidden w-full h-full items-center justify-center text-6xl bg-gradient-to-br from-gray-700 to-gray-800">
-                  ⭐
-                </div>
-              </>
+          <div className="absolute inset-0 bg-pink-300/30 rounded-3xl blur-2xl transform scale-110" />
+          <div className="relative w-44 h-[246px] md:w-56 md:h-[314px] lg:w-64 lg:h-[358px] rounded-3xl overflow-hidden border-2 border-pink-300 shadow-[0_0_30px_rgba(244,114,182,0.2)] bg-stone-100">
+            {actress && !imageError ? (
+              <img
+                src={actress.image}
+                alt="Who is this actress?"
+                className="w-full h-full object-cover object-center"
+                onError={() => setImageError(true)}
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-6xl bg-stone-100">
+                💋
+              </div>
             )}
+            {/* Blur overlay to hide watermarks */}
+            <div className="absolute bottom-0 left-0 right-0 h-4 backdrop-blur-[3px] bg-gradient-to-t from-stone-100/80 to-transparent pointer-events-none" />
           </div>
-          <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-gray-800 px-4 py-1 rounded-full text-sm text-gray-400 border border-gray-700">
+          <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-white px-4 py-1 rounded-full text-sm text-pink-500 border border-pink-300 shadow-sm">
             Who is she?
           </div>
         </div>
@@ -361,14 +372,14 @@ const GameScreen = ({ actress, score, timeLeft, onSubmit, onSkip }) => {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder="Type the actress name..."
-              className="w-full px-6 py-4 bg-gray-800/80 backdrop-blur border-2 border-gray-700 rounded-2xl text-white text-lg placeholder-gray-500 focus:outline-none focus:border-cyan-500 transition-colors"
+              className="w-full px-6 py-4 bg-white border-2 border-stone-200 rounded-2xl text-stone-800 text-lg placeholder-stone-400 focus:outline-none focus:border-pink-400 focus:shadow-[0_0_20px_rgba(244,114,182,0.2)] transition-all"
               autoComplete="off"
               autoCorrect="off"
               spellCheck="false"
             />
             <button
               type="submit"
-              className="absolute right-2 top-1/2 -translate-y-1/2 px-6 py-2 bg-gradient-to-r from-emerald-500 to-cyan-500 rounded-xl font-bold text-gray-900 hover:opacity-90 transition-opacity"
+              className="absolute right-2 top-1/2 -translate-y-1/2 px-6 py-2 bg-gradient-to-r from-pink-400 to-pink-500 rounded-xl font-bold text-white hover:opacity-90 transition-opacity"
             >
               OK
             </button>
@@ -378,7 +389,7 @@ const GameScreen = ({ actress, score, timeLeft, onSubmit, onSkip }) => {
         {/* Skip button */}
         <button
           onClick={onSkip}
-          className="mt-4 text-gray-500 hover:text-gray-300 transition-colors text-sm"
+          className="mt-4 text-stone-400 hover:text-pink-500 transition-colors text-sm"
         >
           Skip →
         </button>
@@ -408,10 +419,10 @@ const ResultScreen = ({ score, totalAnswered, onRestart }) => {
   const accuracy = totalAnswered > 0 ? Math.round((score / totalAnswered) * 100) : 0;
 
   const getMessage = () => {
-    if (score >= 15) return { text: "LEGENDARY! 🏆", color: "from-yellow-400 to-orange-500" };
-    if (score >= 10) return { text: "Excellent! ⚡", color: "from-emerald-400 to-cyan-500" };
-    if (score >= 5) return { text: "Not bad! 👍", color: "from-blue-400 to-indigo-500" };
-    return { text: "You can do better! 💪", color: "from-gray-400 to-gray-500" };
+    if (score >= 15) return { text: "LEGENDARY! 🔥", color: "from-pink-500 to-rose-500" };
+    if (score >= 10) return { text: "Hot stuff! 💋", color: "from-pink-400 to-pink-500" };
+    if (score >= 5) return { text: "Not bad! 👀", color: "from-pink-300 to-pink-400" };
+    return { text: "Try again! 💪", color: "from-stone-400 to-stone-500" };
   };
 
   const message = getMessage();
@@ -448,75 +459,81 @@ const ResultScreen = ({ score, totalAnswered, onRestart }) => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-8 text-center">
-      <div className="mb-8">
-        <p className={`text-2xl md:text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r ${message.color} mb-4`}>
-          {message.text}
-        </p>
-        
-        <div className="relative inline-block">
-          <div className="text-8xl md:text-9xl font-black text-transparent bg-clip-text bg-gradient-to-br from-emerald-400 via-cyan-400 to-blue-500">
-            {score}
+    <div className="min-h-screen flex flex-col items-center justify-center p-8 text-center relative overflow-hidden">
+      {/* Background glow effects */}
+      <div className="absolute top-1/3 left-1/4 w-96 h-96 bg-pink-200/30 rounded-full blur-3xl" />
+      <div className="absolute bottom-1/3 right-1/4 w-96 h-96 bg-pink-100/30 rounded-full blur-3xl" />
+      
+      <div className="relative z-10 flex flex-col items-center">
+        <div className="mb-8">
+          <p className={`text-2xl md:text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r ${message.color} mb-4`}>
+            {message.text}
+          </p>
+          
+          <div className="relative inline-block">
+            <div className="text-8xl md:text-9xl font-black text-transparent bg-clip-text bg-gradient-to-br from-pink-400 to-pink-500">
+              {score}
+            </div>
+            <div className="text-stone-500 text-xl mt-2">points</div>
           </div>
-          <div className="text-gray-500 text-xl mt-2">points</div>
         </div>
-      </div>
 
-      <div className="flex gap-8 mb-12 text-gray-400">
-        <div className="text-center">
-          <div className="text-3xl font-bold text-white">{totalAnswered}</div>
-          <div className="text-sm">attempts</div>
-        </div>
-        <div className="w-px bg-gray-700" />
-        <div className="text-center">
-          <div className="text-3xl font-bold text-white">{accuracy}%</div>
-          <div className="text-sm">accuracy</div>
-        </div>
-      </div>
-
-      <button
-        onClick={onRestart}
-        className="group relative px-12 py-5 bg-gradient-to-r from-emerald-500 to-cyan-500 rounded-2xl font-bold text-xl text-gray-900 transform hover:scale-105 transition-all duration-300 shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/50 mb-12"
-      >
-        PLAY AGAIN
-      </button>
-
-      {/* Newsletter Section */}
-      <div className="w-full max-w-md p-6 bg-gray-800/50 backdrop-blur rounded-3xl border border-gray-700">
-        {!subscribed ? (
-          <>
-            <h3 className="text-lg font-bold text-white mb-2">
-              🚀 V2 coming soon!
-            </h3>
-            <p className="text-gray-400 text-sm mb-4">
-              New modes, leaderboards, challenges... Sign up to get notified!
-            </p>
-            <form onSubmit={handleSubscribe} className="flex gap-2">
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="your@email.com"
-                className="flex-1 px-4 py-3 bg-gray-900 border border-gray-600 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500 transition-colors"
-                disabled={isLoading}
-              />
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="px-6 py-3 bg-gradient-to-r from-orange-500 to-pink-500 rounded-xl font-bold text-white hover:opacity-90 transition-opacity disabled:opacity-50"
-              >
-                {isLoading ? '...' : 'OK'}
-              </button>
-            </form>
-            {error && <p className="text-red-400 text-sm mt-2">{error}</p>}
-          </>
-        ) : (
-          <div className="text-center py-4">
-            <div className="text-3xl mb-2">✅</div>
-            <p className="text-emerald-400 font-bold">Subscribed!</p>
-            <p className="text-gray-400 text-sm">We'll let you know when it's ready</p>
+        <div className="flex justify-center gap-8 mb-12 text-stone-500">
+          <div className="text-center">
+            <div className="text-3xl font-bold text-stone-800">{totalAnswered}</div>
+            <div className="text-sm">attempts</div>
           </div>
-        )}
+          <div className="w-px bg-stone-300" />
+          <div className="text-center">
+            <div className="text-3xl font-bold text-stone-800">{accuracy}%</div>
+            <div className="text-sm">accuracy</div>
+          </div>
+        </div>
+
+        <button
+          onClick={onRestart}
+          className="group relative px-12 py-5 bg-gradient-to-r from-pink-400 to-pink-500 rounded-2xl font-bold text-xl text-white transform hover:scale-105 transition-all duration-300 shadow-[0_0_30px_rgba(244,114,182,0.4)] hover:shadow-[0_0_50px_rgba(244,114,182,0.6)] mb-12"
+        >
+          PLAY AGAIN
+        </button>
+
+        {/* Newsletter Section */}
+        <div className="w-full max-w-md p-6 bg-white/80 backdrop-blur rounded-3xl border border-pink-200 shadow-[0_0_30px_rgba(244,114,182,0.1)]">
+          {!subscribed ? (
+            <>
+              <h3 className="text-lg font-bold text-stone-800 mb-2">
+                🔥 V2 coming soon!
+              </h3>
+              <p className="text-stone-500 text-sm mb-4">
+                New modes, leaderboards, challenges... Sign up to get notified!
+              </p>
+              <form onSubmit={handleSubscribe} className="flex gap-2">
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="your@email.com"
+                  className="flex-1 px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl text-stone-800 placeholder-stone-400 focus:outline-none focus:border-pink-400 focus:shadow-[0_0_15px_rgba(244,114,182,0.2)] transition-all"
+                  disabled={isLoading}
+                />
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="px-6 py-3 bg-gradient-to-r from-pink-400 to-pink-500 rounded-xl font-bold text-white hover:opacity-90 transition-opacity disabled:opacity-50"
+                >
+                  {isLoading ? '...' : 'OK'}
+                </button>
+              </form>
+              {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
+            </>
+          ) : (
+            <div className="text-center py-4">
+              <div className="text-3xl mb-2">💋</div>
+              <p className="text-pink-500 font-bold">Subscribed!</p>
+              <p className="text-stone-500 text-sm">We'll let you know when it's ready</p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -546,7 +563,7 @@ export default function ActressQuiz() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+    <div className="min-h-screen bg-stone-100 text-stone-800" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
       <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
       
       {gameState === 'idle' && (
