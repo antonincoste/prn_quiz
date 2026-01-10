@@ -329,7 +329,7 @@ const GameScreen = ({ actress, score, timeLeft, onSubmit, onSkip }) => {
       <div className="flex-1 flex flex-col items-center justify-center">
         <div className="relative mb-8">
           <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/20 to-cyan-500/20 rounded-3xl blur-2xl transform scale-110" />
-          <div className="relative w-48 h-48 md:w-64 md:h-64 rounded-3xl overflow-hidden border-4 border-gray-700 shadow-2xl bg-gray-800">
+          <div className="relative w-44 h-[246px] md:w-56 md:h-[314px] lg:w-64 lg:h-[358px] rounded-3xl overflow-hidden border-4 border-gray-700 shadow-2xl bg-gray-800">
             {actress && (
               <>
                 <img
