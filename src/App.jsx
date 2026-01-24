@@ -105,11 +105,22 @@ const useGame = () => {
   const [gameState, setGameState] = useState('idle');
   const [score, setScore] = useState(0);
   const [currentActress, setCurrentActress] = useState(null);
-  const [usedActressIds, setUsedActressIds] = useState([]);
   const [totalAnswered, setTotalAnswered] = useState(0);
   const [actresses, setActresses] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  
+  // Utiliser useRef pour tracker les IDs de manière synchrone (évite les problèmes de state async)
+  const usedActressIdsRef = useRef(new Set());
+  const nextActressRef = useRef(null);
+
+  // Précharger une image
+  const preloadImage = (url) => {
+    if (url) {
+      const img = new Image();
+      img.src = url;
+    }
+  };
 
   // Charger les actrices depuis l'API au démarrage
   useEffect(() => {
@@ -118,14 +129,17 @@ const useGame = () => {
         const response = await fetch('/api/actresses');
         if (!response.ok) throw new Error('API not available');
         const data = await response.json();
-        setActresses(data.actresses);
+        // Filtrer : garder seulement les actrices avec une image
+        const actressesWithImages = data.actresses.filter(a => a.image && a.image.trim() !== '');
+        setActresses(actressesWithImages);
         setIsLoading(false);
       } catch (err) {
         // Fallback: import local en dev
         console.log('API not available, using local data');
         try {
           const { ACTRESS_DB } = await import('./actress.js');
-          setActresses(ACTRESS_DB);
+          const actressesWithImages = ACTRESS_DB.filter(a => a.image && a.image.trim() !== '');
+          setActresses(actressesWithImages);
           setIsLoading(false);
         } catch (importErr) {
           console.error('Error loading local data:', importErr);
@@ -137,68 +151,94 @@ const useGame = () => {
     fetchActresses();
   }, []);
 
-  const getRandomActress = (excludeIds = []) => {
-    const available = actresses.filter(p => !excludeIds.includes(p.id));
+  const getNextActress = () => {
+    const available = actresses.filter(a => !usedActressIdsRef.current.has(a.id));
+    
+    // Si toutes les actrices ont été vues, reset
     if (available.length === 0) {
+      usedActressIdsRef.current = new Set();
       return actresses[Math.floor(Math.random() * actresses.length)];
     }
+    
     return available[Math.floor(Math.random() * available.length)];
+  };
+
+  // Préparer la prochaine actrice (pour le préchargement)
+  const prepareNextActress = () => {
+    const next = getNextActress();
+    nextActressRef.current = next;
+    preloadImage(next.image);
   };
 
   const startGame = () => {
     if (actresses.length === 0) return;
-    const firstActress = getRandomActress([]);
+    usedActressIdsRef.current = new Set();
+    const firstActress = getNextActress();
+    usedActressIdsRef.current.add(firstActress.id);
     setScore(0);
-    setUsedActressIds([firstActress.id]);
     setTotalAnswered(0);
     setCurrentActress(firstActress);
     setGameState('playing');
+    
+    // Précharger la prochaine
+    prepareNextActress();
   };
 
   const endGame = useCallback(() => {
     setGameState('ended');
   }, []);
 
+  const goToNextActress = () => {
+    // Utiliser l'actrice préchargée si disponible
+    let nextActress = nextActressRef.current;
+    
+    // Si pas de préchargée ou déjà utilisée, en chercher une nouvelle
+    if (!nextActress || usedActressIdsRef.current.has(nextActress.id)) {
+      nextActress = getNextActress();
+    }
+    
+    usedActressIdsRef.current.add(nextActress.id);
+    setCurrentActress(nextActress);
+    
+    // Précharger la suivante
+    nextActressRef.current = null;
+    prepareNextActress();
+  };
+
   const submitAnswer = (input) => {
     if (!currentActress || gameState !== 'playing') return false;
     const isCorrect = checkAnswer(input, currentActress);
+    
+    if (!isCorrect) {
+      // Mauvaise réponse : ne pas changer d'actrice, laisser réessayer
+      return false;
+    }
+    
+    // Bonne réponse : comptabiliser et passer à la suivante
+    const actressId = currentActress.id;
     setTotalAnswered((prev) => prev + 1);
+    setScore((prev) => prev + 1);
     
     // Envoyer les stats
-    updateStats(currentActress.id, isCorrect);
+    updateStats(actressId, true);
     
-    if (!isCorrect) return false;
-    setScore((prev) => prev + 1);
-    setUsedActressIds((prev) => {
-      const usedSet = new Set(prev);
-      usedSet.add(currentActress.id);
-      const used = Array.from(usedSet);
-      const shouldReset = used.length >= actresses.length;
-      const excludeIds = shouldReset ? [] : used;
-      const nextActress = getRandomActress(excludeIds);
-      setCurrentActress(nextActress);
-      return shouldReset ? [nextActress.id] : [...used, nextActress.id];
-    });
+    // Passer à l'actrice suivante
+    goToNextActress();
+    
     return true;
   };
 
   const skipActress = () => {
     if (!currentActress || gameState !== 'playing') return;
+    const actressId = currentActress.id;
+    
     setTotalAnswered((prev) => prev + 1);
     
     // Envoyer les stats (skip = pas trouvé)
-    updateStats(currentActress.id, false);
+    updateStats(actressId, false);
     
-    setUsedActressIds((prev) => {
-      const usedSet = new Set(prev);
-      usedSet.add(currentActress.id);
-      const used = Array.from(usedSet);
-      const shouldReset = used.length >= actresses.length;
-      const excludeIds = shouldReset ? [] : used;
-      const nextActress = getRandomActress(excludeIds);
-      setCurrentActress(nextActress);
-      return shouldReset ? [nextActress.id] : [...used, nextActress.id];
-    });
+    // Passer à l'actrice suivante
+    goToNextActress();
   };
 
   return {
@@ -342,7 +382,7 @@ const GameScreen = ({ actress, score, timeLeft, onSubmit, onSkip }) => {
       <div className="flex-1 flex flex-col items-center justify-center relative z-10">
         <div className="relative mb-8">
           <div className="absolute inset-0 bg-pink-300/30 rounded-3xl blur-2xl transform scale-110" />
-          <div className="relative w-44 h-[246px] md:w-56 md:h-[314px] lg:w-64 lg:h-[358px] rounded-3xl overflow-hidden border-2 border-pink-300 shadow-[0_0_30px_rgba(244,114,182,0.2)] bg-stone-100">
+          <div className="relative w-64 h-[358px] md:w-72 md:h-[403px] lg:w-80 lg:h-[448px] rounded-3xl overflow-hidden border-2 border-pink-300 shadow-[0_0_30px_rgba(244,114,182,0.2)] bg-stone-100">
             {actress && !imageError ? (
               <img
                 src={actress.image}

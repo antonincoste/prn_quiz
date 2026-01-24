@@ -1,8 +1,1 @@
-abella-danger: https://zyr8deck4vmce0lu.public.blob.vercel-storage.com/actresses/abella-danger.jpg
-angela-white: https://zyr8deck4vmce0lu.public.blob.vercel-storage.com/actresses/angela-white.jpg
-brandi-love: https://zyr8deck4vmce0lu.public.blob.vercel-storage.com/actresses/brandi-love.jpg
-madison-ivy: https://zyr8deck4vmce0lu.public.blob.vercel-storage.com/actresses/madison-ivy.webp
-mia-khalifa: https://zyr8deck4vmce0lu.public.blob.vercel-storage.com/actresses/mia-khalifa.jpg
-mia-malkova: https://zyr8deck4vmce0lu.public.blob.vercel-storage.com/actresses/mia-malkova.jpg
-nicole-aniston: https://zyr8deck4vmce0lu.public.blob.vercel-storage.com/actresses/nicole-aniston.webp
-riley-reid: https://zyr8deck4vmce0lu.public.blob.vercel-storage.com/actresses/riley-reid.jpg
+tori-black: https://zyr8deck4vmce0lu.public.blob.vercel-storage.com/actresses/tori-black.jpg
