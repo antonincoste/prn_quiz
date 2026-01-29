@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 
 // Google Analytics 4 - Tracking functions
-const GA_MEASUREMENT_ID = 'G-XXXXXXXXXX'; // TODO: Remplacer par ton ID
+const GA_MEASUREMENT_ID = 'G-8E3NPP7TVJ';
 
 const trackEvent = (eventName, params = {}) => {
   if (typeof window !== 'undefined' && window.gtag) {
