@@ -15,7 +15,8 @@ export default async function handler(request, response) {
         SELECT 
           id, first_name, last_name, image_url_1, image_url_2,
           is_blonde, is_brunette, is_busty, is_curvy,
-          times_shown, times_guessed
+          times_shown, times_guessed,
+          onlyfans_url, instagram_url, twitter_url
         FROM actresses
         WHERE 
           image_url_1 IS NOT NULL AND image_url_1 != ''
@@ -31,7 +32,8 @@ export default async function handler(request, response) {
         SELECT 
           id, first_name, last_name, image_url_1, image_url_2,
           is_blonde, is_brunette, is_busty, is_curvy,
-          times_shown, times_guessed
+          times_shown, times_guessed,
+          onlyfans_url, instagram_url, twitter_url
         FROM actresses
         WHERE image_url_1 IS NOT NULL AND image_url_1 != ''
         ORDER BY RANDOM()
@@ -51,6 +53,9 @@ export default async function handler(request, response) {
       isCurvy: row.is_curvy,
       timesShown: row.times_shown,
       timesGuessed: row.times_guessed,
+      onlyfans: row.onlyfans_url,
+      instagram: row.instagram_url,
+      twitter: row.twitter_url,
     }));
 
     return response.status(200).json({ actresses });

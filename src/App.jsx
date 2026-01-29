@@ -109,6 +109,7 @@ const useGame = () => {
   const [actresses, setActresses] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [answers, setAnswers] = useState([]); // Historique des réponses
   
   // Utiliser useRef pour tracker les IDs de manière synchrone (évite les problèmes de state async)
   const usedActressIdsRef = useRef(new Set());
@@ -177,6 +178,7 @@ const useGame = () => {
     usedActressIdsRef.current.add(firstActress.id);
     setScore(0);
     setTotalAnswered(0);
+    setAnswers([]); // Reset l'historique
     setCurrentActress(firstActress);
     setGameState('playing');
     
@@ -219,6 +221,9 @@ const useGame = () => {
     setTotalAnswered((prev) => prev + 1);
     setScore((prev) => prev + 1);
     
+    // Ajouter à l'historique
+    setAnswers((prev) => [...prev, { actress: currentActress, correct: true }]);
+    
     // Envoyer les stats
     updateStats(actressId, true);
     
@@ -233,6 +238,9 @@ const useGame = () => {
     const actressId = currentActress.id;
     
     setTotalAnswered((prev) => prev + 1);
+    
+    // Ajouter à l'historique
+    setAnswers((prev) => [...prev, { actress: currentActress, correct: false }]);
     
     // Envoyer les stats (skip = pas trouvé)
     updateStats(actressId, false);
@@ -249,6 +257,7 @@ const useGame = () => {
     actresses,
     isLoading,
     error,
+    answers,
     startGame,
     endGame,
     submitAnswer,
@@ -257,7 +266,7 @@ const useGame = () => {
 };
 
 // Start screen component
-const StartScreen = ({ onStart, isLoading, error, actressCount }) => {
+const StartScreen = ({ onStart, isLoading, error, nsfw, setNsfw }) => {
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-8 text-center relative overflow-hidden">
       {/* Background glow effects */}
@@ -276,9 +285,23 @@ const StartScreen = ({ onStart, isLoading, error, actressCount }) => {
           <div className="absolute -bottom-2 -left-6 w-6 h-6 bg-pink-300 rounded-full animate-pulse shadow-[0_0_20px_rgba(249,168,212,0.6)]" />
         </div>
         
-        <p className="text-xl md:text-2xl text-stone-600 mt-8 mb-12 max-w-md font-light text-center">
+        <p className="text-xl md:text-2xl text-stone-600 mt-8 mb-8 max-w-md font-light text-center">
           Name as many actresses as you can in <span className="text-pink-500 font-bold">60 seconds</span>
         </p>
+
+        {/* NSFW Toggle */}
+        <div className="mb-8 flex items-center gap-3">
+          <span className={`text-sm font-medium ${nsfw ? 'text-stone-400' : 'text-stone-600'}`}>SFW</span>
+          <button
+            onClick={() => setNsfw(!nsfw)}
+            className={`relative w-14 h-8 rounded-full transition-colors duration-300 ${nsfw ? 'bg-pink-500' : 'bg-stone-300'}`}
+          >
+            <div
+              className={`absolute top-1 w-6 h-6 bg-white rounded-full shadow-md transition-transform duration-300 ${nsfw ? 'translate-x-7' : 'translate-x-1'}`}
+            />
+          </button>
+          <span className={`text-sm font-medium ${nsfw ? 'text-pink-500' : 'text-stone-400'}`}>NSFW 🔞</span>
+        </div>
 
         {error ? (
           <div className="p-4 bg-red-100 border border-red-300 rounded-xl mb-8">
@@ -314,12 +337,15 @@ const StartScreen = ({ onStart, isLoading, error, actressCount }) => {
 };
 
 // Game screen component
-const GameScreen = ({ actress, score, timeLeft, onSubmit, onSkip }) => {
+const GameScreen = ({ actress, score, timeLeft, onSubmit, onSkip, onStop, nsfw }) => {
   const [input, setInput] = useState('');
   const [shake, setShake] = useState(false);
   const [flash, setFlash] = useState(false);
   const [imageError, setImageError] = useState(false);
   const inputRef = useRef(null);
+
+  // Choisir l'image selon le mode NSFW
+  const imageUrl = nsfw && actress?.image2 ? actress.image2 : actress?.image;
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -364,16 +390,26 @@ const GameScreen = ({ actress, score, timeLeft, onSubmit, onSkip }) => {
           </div>
         </div>
         
-        <div className="flex flex-col items-end gap-2">
-          <div className={`text-4xl md:text-5xl font-black tabular-nums ${isLowTime ? 'text-red-500 animate-pulse' : 'text-stone-800'}`}>
-            {timeLeft}
-            <span className="text-lg text-stone-400 ml-1">s</span>
-          </div>
-          <div className="w-32 md:w-48 h-2 bg-stone-200 rounded-full overflow-hidden">
-            <div 
-              className={`h-full transition-all duration-1000 ease-linear rounded-full ${isLowTime ? 'bg-red-500' : 'bg-gradient-to-r from-pink-400 to-pink-500'}`}
-              style={{ width: `${timePercentage}%` }}
-            />
+        <div className="flex items-center gap-4">
+          {/* Stop button */}
+          <button
+            onClick={onStop}
+            className="px-4 py-2 bg-stone-200 hover:bg-stone-300 rounded-xl text-stone-600 font-medium text-sm transition-colors"
+          >
+            Stop
+          </button>
+          
+          <div className="flex flex-col items-end gap-2">
+            <div className={`text-4xl md:text-5xl font-black tabular-nums ${isLowTime ? 'text-red-500 animate-pulse' : 'text-stone-800'}`}>
+              {timeLeft}
+              <span className="text-lg text-stone-400 ml-1">s</span>
+            </div>
+            <div className="w-32 md:w-48 h-2 bg-stone-200 rounded-full overflow-hidden">
+              <div 
+                className={`h-full transition-all duration-1000 ease-linear rounded-full ${isLowTime ? 'bg-red-500' : 'bg-gradient-to-r from-pink-400 to-pink-500'}`}
+                style={{ width: `${timePercentage}%` }}
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -383,9 +419,9 @@ const GameScreen = ({ actress, score, timeLeft, onSubmit, onSkip }) => {
         <div className="relative mb-8">
           <div className="absolute inset-0 bg-pink-300/30 rounded-3xl blur-2xl transform scale-110" />
           <div className="relative w-64 h-[358px] md:w-72 md:h-[403px] lg:w-80 lg:h-[448px] rounded-3xl overflow-hidden border-2 border-pink-300 shadow-[0_0_30px_rgba(244,114,182,0.2)] bg-stone-100">
-            {actress && !imageError ? (
+            {actress && !imageError && imageUrl ? (
               <img
-                src={actress.image}
+                src={imageUrl}
                 alt="Who is this actress?"
                 className="w-full h-full object-cover object-center"
                 onError={() => setImageError(true)}
@@ -450,7 +486,7 @@ const GameScreen = ({ actress, score, timeLeft, onSubmit, onSkip }) => {
 };
 
 // Result screen component with newsletter
-const ResultScreen = ({ score, totalAnswered, onRestart }) => {
+const ResultScreen = ({ score, totalAnswered, onRestart, answers, nsfw }) => {
   const [email, setEmail] = useState('');
   const [subscribed, setSubscribed] = useState(false);
   const [error, setError] = useState('');
@@ -499,46 +535,115 @@ const ResultScreen = ({ score, totalAnswered, onRestart }) => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-8 text-center relative overflow-hidden">
+    <div className="min-h-screen flex flex-col items-center p-4 md:p-8 relative overflow-hidden">
       {/* Background glow effects */}
       <div className="absolute top-1/3 left-1/4 w-96 h-96 bg-pink-200/30 rounded-full blur-3xl" />
       <div className="absolute bottom-1/3 right-1/4 w-96 h-96 bg-pink-100/30 rounded-full blur-3xl" />
       
-      <div className="relative z-10 flex flex-col items-center">
-        <div className="mb-8">
-          <p className={`text-2xl md:text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r ${message.color} mb-4`}>
+      <div className="relative z-10 flex flex-col items-center w-full max-w-lg pt-8">
+        {/* Score Section */}
+        <div className="mb-6 text-center">
+          <p className={`text-xl md:text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r ${message.color} mb-2`}>
             {message.text}
           </p>
           
           <div className="relative inline-block">
-            <div className="text-8xl md:text-9xl font-black text-transparent bg-clip-text bg-gradient-to-br from-pink-400 to-pink-500">
+            <div className="text-6xl md:text-7xl font-black text-transparent bg-clip-text bg-gradient-to-br from-pink-400 to-pink-500">
               {score}
             </div>
-            <div className="text-stone-500 text-xl mt-2">points</div>
+            <div className="text-stone-500 text-lg">points</div>
           </div>
         </div>
 
-        <div className="flex justify-center gap-8 mb-12 text-stone-500">
+        <div className="flex justify-center gap-8 mb-6 text-stone-500">
           <div className="text-center">
-            <div className="text-3xl font-bold text-stone-800">{totalAnswered}</div>
+            <div className="text-2xl font-bold text-stone-800">{totalAnswered}</div>
             <div className="text-sm">attempts</div>
           </div>
           <div className="w-px bg-stone-300" />
           <div className="text-center">
-            <div className="text-3xl font-bold text-stone-800">{accuracy}%</div>
+            <div className="text-2xl font-bold text-stone-800">{accuracy}%</div>
             <div className="text-sm">accuracy</div>
           </div>
         </div>
 
         <button
           onClick={onRestart}
-          className="group relative px-12 py-5 bg-gradient-to-r from-pink-400 to-pink-500 rounded-2xl font-bold text-xl text-white transform hover:scale-105 transition-all duration-300 shadow-[0_0_30px_rgba(244,114,182,0.4)] hover:shadow-[0_0_50px_rgba(244,114,182,0.6)] mb-12"
+          className="group relative px-10 py-4 bg-gradient-to-r from-pink-400 to-pink-500 rounded-2xl font-bold text-lg text-white transform hover:scale-105 transition-all duration-300 shadow-[0_0_30px_rgba(244,114,182,0.4)] hover:shadow-[0_0_50px_rgba(244,114,182,0.6)] mb-6"
         >
           PLAY AGAIN
         </button>
 
+        {/* Answers Recap */}
+        {answers && answers.length > 0 && (
+          <div className="w-full mb-6">
+            <h3 className="text-lg font-bold text-stone-800 mb-3 text-center">Your answers</h3>
+            <div className="bg-white/80 backdrop-blur rounded-2xl border border-pink-200 shadow-[0_0_20px_rgba(244,114,182,0.1)] max-h-80 overflow-y-auto">
+              {answers.map((answer, index) => (
+                <div 
+                  key={index}
+                  className={`flex items-center gap-3 p-3 ${index !== answers.length - 1 ? 'border-b border-stone-100' : ''}`}
+                >
+                  {/* Photo - format 5:7 comme le quiz */}
+                  <div className="w-14 h-[78px] rounded-lg overflow-hidden flex-shrink-0 bg-stone-100">
+                    <img 
+                      src={nsfw && answer.actress.image2 ? answer.actress.image2 : answer.actress.image} 
+                      alt=""
+                      className="w-full h-full object-cover object-center"
+                    />
+                  </div>
+                  
+                  {/* Name + Social Links */}
+                  <div className="flex-1 text-left">
+                    <p className="font-medium text-stone-800">
+                      {answer.actress.firstName} {answer.actress.lastName}
+                    </p>
+                    <div className="flex gap-2 mt-1">
+                      {answer.actress.onlyfans && (
+                        <a 
+                          href={answer.actress.onlyfans} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-xs px-2 py-0.5 bg-sky-100 text-sky-600 rounded-full hover:bg-sky-200 transition-colors"
+                        >
+                          OF
+                        </a>
+                      )}
+                      {answer.actress.instagram && (
+                        <a 
+                          href={answer.actress.instagram} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-xs px-2 py-0.5 bg-pink-100 text-pink-600 rounded-full hover:bg-pink-200 transition-colors"
+                        >
+                          IG
+                        </a>
+                      )}
+                      {answer.actress.twitter && (
+                        <a 
+                          href={answer.actress.twitter} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-xs px-2 py-0.5 bg-stone-100 text-stone-600 rounded-full hover:bg-stone-200 transition-colors"
+                        >
+                          X
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Result */}
+                  <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${answer.correct ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-500'}`}>
+                    {answer.correct ? '✓' : '✗'}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Newsletter Section */}
-        <div className="w-full max-w-md p-6 bg-white/80 backdrop-blur rounded-3xl border border-pink-200 shadow-[0_0_30px_rgba(244,114,182,0.1)]">
+        <div className="w-full p-5 bg-white/80 backdrop-blur rounded-2xl border border-pink-200 shadow-[0_0_30px_rgba(244,114,182,0.1)]">
           {!subscribed ? (
             <>
               <h3 className="text-lg font-bold text-stone-800 mb-2">
@@ -589,49 +694,71 @@ export default function ActressQuiz() {
     actresses,
     isLoading,
     error,
+    answers,
     startGame,
     endGame,
     submitAnswer,
     skipActress,
   } = useGame();
 
-  const { timeLeft, start: startTimer } = useTimer(60, endGame);
+  const { timeLeft, start: startTimer, stop: stopTimer } = useTimer(60, endGame);
+  const [nsfw, setNsfw] = useState(false);
 
   const handleStart = () => {
     startGame();
     startTimer();
   };
 
+  const handleStop = () => {
+    stopTimer();
+    endGame();
+  };
+
   return (
-    <div className="min-h-screen bg-stone-100 text-stone-800" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+    <div className="min-h-screen bg-stone-100 text-stone-800 flex flex-col" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
       <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
       
-      {gameState === 'idle' && (
-        <StartScreen 
-          onStart={handleStart} 
-          isLoading={isLoading} 
-          error={error}
-          actressCount={actresses.length}
-        />
-      )}
-      
-      {gameState === 'playing' && (
-        <GameScreen
-          actress={currentActress}
-          score={score}
-          timeLeft={timeLeft}
-          onSubmit={submitAnswer}
-          onSkip={skipActress}
-        />
-      )}
-      
-      {gameState === 'ended' && (
-        <ResultScreen
-          score={score}
-          totalAnswered={totalAnswered}
-          onRestart={handleStart}
-        />
-      )}
+      <div className="flex-1">
+        {gameState === 'idle' && (
+          <StartScreen 
+            onStart={handleStart} 
+            isLoading={isLoading} 
+            error={error}
+            nsfw={nsfw}
+            setNsfw={setNsfw}
+          />
+        )}
+        
+        {gameState === 'playing' && (
+          <GameScreen
+            actress={currentActress}
+            score={score}
+            timeLeft={timeLeft}
+            onSubmit={submitAnswer}
+            onSkip={skipActress}
+            onStop={handleStop}
+            nsfw={nsfw}
+          />
+        )}
+        
+        {gameState === 'ended' && (
+          <ResultScreen
+            score={score}
+            totalAnswered={totalAnswered}
+            onRestart={handleStart}
+            answers={answers}
+            nsfw={nsfw}
+          />
+        )}
+      </div>
+
+      {/* Footer */}
+      <footer className="py-4 text-center text-stone-400 text-sm">
+        <p>The Porn Quiz - 2026</p>
+        <a href="mailto:contact@pornquiz.com" className="hover:text-pink-500 transition-colors">
+          contact@pornquiz.com
+        </a>
+      </footer>
     </div>
   );
 }
