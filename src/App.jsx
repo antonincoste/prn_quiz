@@ -1,4 +1,28 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { track } from '@vercel/analytics';
+
+// Events tracking helpers
+const analytics = {
+  gameStarted: (nsfw) => track('game_started', { nsfw_mode: nsfw }),
+  gameEnded: (score, totalAnswered, duration) => track('game_ended', { 
+    score, 
+    total_answered: totalAnswered,
+    accuracy: totalAnswered > 0 ? Math.round((score / totalAnswered) * 100) : 0,
+    duration_seconds: duration
+  }),
+  gameStopped: (score, totalAnswered, timeLeft) => track('game_stopped', { 
+    score, 
+    total_answered: totalAnswered,
+    time_remaining: timeLeft
+  }),
+  correctAnswer: (actressId) => track('correct_answer', { actress_id: actressId }),
+  skipUsed: (actressId) => track('skip_used', { actress_id: actressId }),
+  newsletterSubscribed: () => track('newsletter_subscribed'),
+  socialLinkClicked: (platform, actressId) => track('social_link_clicked', { 
+    platform, 
+    actress_id: actressId 
+  }),
+};
 
 // Fonction de distance de Levenshtein
 const levenshteinDistance = (str1, str2) => {
@@ -227,6 +251,9 @@ const useGame = () => {
     // Envoyer les stats
     updateStats(actressId, true);
     
+    // Tracking
+    analytics.correctAnswer(actressId);
+    
     // Passer à l'actrice suivante
     goToNextActress();
     
@@ -244,6 +271,9 @@ const useGame = () => {
     
     // Envoyer les stats (skip = pas trouvé)
     updateStats(actressId, false);
+    
+    // Tracking
+    analytics.skipUsed(actressId);
     
     // Passer à l'actrice suivante
     goToNextActress();
@@ -527,6 +557,7 @@ const ResultScreen = ({ score, totalAnswered, onRestart, answers, nsfw }) => {
       }
 
       setSubscribed(true);
+      analytics.newsletterSubscribed();
     } catch (err) {
       setError('Something went wrong. Try again!');
     } finally {
@@ -605,6 +636,7 @@ const ResultScreen = ({ score, totalAnswered, onRestart, answers, nsfw }) => {
                           target="_blank" 
                           rel="noopener noreferrer"
                           className="text-xs px-2 py-0.5 bg-sky-100 text-sky-600 rounded-full hover:bg-sky-200 transition-colors"
+                          onClick={() => analytics.socialLinkClicked('onlyfans', answer.actress.id)}
                         >
                           OF
                         </a>
@@ -615,6 +647,7 @@ const ResultScreen = ({ score, totalAnswered, onRestart, answers, nsfw }) => {
                           target="_blank" 
                           rel="noopener noreferrer"
                           className="text-xs px-2 py-0.5 bg-pink-100 text-pink-600 rounded-full hover:bg-pink-200 transition-colors"
+                          onClick={() => analytics.socialLinkClicked('instagram', answer.actress.id)}
                         >
                           IG
                         </a>
@@ -625,6 +658,7 @@ const ResultScreen = ({ score, totalAnswered, onRestart, answers, nsfw }) => {
                           target="_blank" 
                           rel="noopener noreferrer"
                           className="text-xs px-2 py-0.5 bg-stone-100 text-stone-600 rounded-full hover:bg-stone-200 transition-colors"
+                          onClick={() => analytics.socialLinkClicked('twitter', answer.actress.id)}
                         >
                           X
                         </a>
@@ -703,14 +737,32 @@ export default function ActressQuiz() {
 
   const { timeLeft, start: startTimer, stop: stopTimer } = useTimer(60, endGame);
   const [nsfw, setNsfw] = useState(false);
+  const gameStartTimeRef = useRef(null);
+  const hasTrackedEndRef = useRef(false);
+
+  // Track game ended (quand le timer arrive à 0)
+  useEffect(() => {
+    if (gameState === 'ended' && gameStartTimeRef.current && !hasTrackedEndRef.current) {
+      const duration = Math.round((Date.now() - gameStartTimeRef.current) / 1000);
+      analytics.gameEnded(score, totalAnswered, duration);
+      hasTrackedEndRef.current = true;
+    }
+    if (gameState === 'idle') {
+      hasTrackedEndRef.current = false;
+    }
+  }, [gameState, score, totalAnswered]);
 
   const handleStart = () => {
     startGame();
     startTimer();
+    gameStartTimeRef.current = Date.now();
+    analytics.gameStarted(nsfw);
   };
 
   const handleStop = () => {
     stopTimer();
+    analytics.gameStopped(score, totalAnswered, timeLeft);
+    hasTrackedEndRef.current = true; // Éviter le double tracking
     endGame();
   };
 

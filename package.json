@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@vercel/analytics": "^1.6.1",
     "@vercel/blob": "^2.0.0",
     "@vercel/postgres": "^0.10.0",
     "dotenv": "^17.2.3",
@@ -29,7 +30,7 @@
     "globals": "^15.11.0",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.17",
-    "vercel": "^50.1.6",
+    "vercel": "^50.9.3",
     "vite": "^5.4.10"
   }
 }
