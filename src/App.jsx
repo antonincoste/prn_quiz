@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 
 // Google Analytics 4 - Tracking functions
-const GA_MEASUREMENT_ID = 'G-8E3NPP7TVJ';
-
 const trackEvent = (eventName, params = {}) => {
   if (typeof window !== 'undefined' && window.gtag) {
     window.gtag('event', eventName, params);
@@ -306,7 +304,7 @@ const useGame = () => {
 // Start screen component
 const StartScreen = ({ onStart, isLoading, error, nsfw, setNsfw }) => {
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen p-8 text-center relative overflow-hidden">
+    <div className="flex flex-col items-center justify-center h-full p-8 text-center relative overflow-hidden">
       {/* Background glow effects */}
       <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-pink-300/20 rounded-full blur-3xl" />
       <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-pink-200/20 rounded-full blur-3xl" />
@@ -413,7 +411,7 @@ const GameScreen = ({ actress, score, timeLeft, onSubmit, onSkip, onStop, nsfw }
   const isLowTime = timeLeft <= 10;
 
   return (
-    <div className={`min-h-screen flex flex-col p-4 md:p-8 transition-colors duration-300 relative overflow-hidden ${flash ? 'bg-pink-100' : ''}`}>
+    <div className={`h-full flex flex-col p-4 md:p-8 transition-colors duration-300 relative overflow-hidden ${flash ? 'bg-pink-100' : ''}`}>
       {/* Background glow */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[500px] h-[500px] bg-pink-200/30 rounded-full blur-3xl pointer-events-none" />
       
@@ -529,8 +527,48 @@ const ResultScreen = ({ score, totalAnswered, onRestart, answers, nsfw }) => {
   const [subscribed, setSubscribed] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showMissingLinkModal, setShowMissingLinkModal] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const accuracy = totalAnswered > 0 ? Math.round((score / totalAnswered) * 100) : 0;
+
+  const handleShare = async () => {
+    const text = `🔞 The Porn Quiz\n\nI scored ${score} points with ${accuracy}% accuracy!\n\nCan you beat me? 👉 pornquiz.com`;
+    
+    analytics.socialLinkClicked('share', null);
+    
+    // Mobile only: native share (check for touch device)
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    
+    if (isMobile && navigator.share) {
+      try {
+        await navigator.share({ text });
+        return;
+      } catch (e) {
+        // User cancelled or error, fallback to clipboard
+      }
+    }
+    
+    // Desktop: copy to clipboard
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (e) {
+      // Fallback for older browsers
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.focus();
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
 
   const getMessage = () => {
     if (score >= 15) return { text: "LEGENDARY! 🔥", color: "from-pink-500 to-rose-500" };
@@ -540,6 +578,31 @@ const ResultScreen = ({ score, totalAnswered, onRestart, answers, nsfw }) => {
   };
 
   const message = getMessage();
+  
+  // Composant pour les liens sociaux
+  const SocialLink = ({ href, platform, actressId, label, activeClass, inactiveClass }) => {
+    if (href) {
+      return (
+        <a 
+          href={href} 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className={`text-xs px-2 py-0.5 rounded-full transition-colors ${activeClass}`}
+          onClick={() => analytics.socialLinkClicked(platform, actressId)}
+        >
+          {label}
+        </a>
+      );
+    }
+    return (
+      <button
+        onClick={() => setShowMissingLinkModal(true)}
+        className={`text-xs px-2 py-0.5 rounded-full transition-colors ${inactiveClass}`}
+      >
+        {label}
+      </button>
+    );
+  };
 
   const handleSubscribe = async (e) => {
     e.preventDefault();
@@ -574,7 +637,7 @@ const ResultScreen = ({ score, totalAnswered, onRestart, answers, nsfw }) => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center p-4 md:p-8 relative overflow-hidden">
+    <div className="flex flex-col items-center p-4 md:p-8 relative overflow-hidden">
       {/* Background glow effects */}
       <div className="absolute top-1/3 left-1/4 w-96 h-96 bg-pink-200/30 rounded-full blur-3xl" />
       <div className="absolute bottom-1/3 right-1/4 w-96 h-96 bg-pink-100/30 rounded-full blur-3xl" />
@@ -606,12 +669,21 @@ const ResultScreen = ({ score, totalAnswered, onRestart, answers, nsfw }) => {
           </div>
         </div>
 
-        <button
-          onClick={onRestart}
-          className="group relative px-10 py-4 bg-gradient-to-r from-pink-400 to-pink-500 rounded-2xl font-bold text-lg text-white transform hover:scale-105 transition-all duration-300 shadow-[0_0_30px_rgba(244,114,182,0.4)] hover:shadow-[0_0_50px_rgba(244,114,182,0.6)] mb-6"
-        >
-          PLAY AGAIN
-        </button>
+        <div className="flex gap-3 mb-6">
+          <button
+            onClick={onRestart}
+            className="group relative px-10 py-4 bg-gradient-to-r from-pink-400 to-pink-500 rounded-2xl font-bold text-lg text-white transform hover:scale-105 transition-all duration-300 shadow-[0_0_30px_rgba(244,114,182,0.4)] hover:shadow-[0_0_50px_rgba(244,114,182,0.6)]"
+          >
+            PLAY AGAIN
+          </button>
+          
+          <button
+            onClick={handleShare}
+            className="group relative px-6 py-4 bg-white border-2 border-pink-400 rounded-2xl font-bold text-lg text-pink-500 transform hover:scale-105 transition-all duration-300 hover:bg-pink-50"
+          >
+            {copied ? '✓ COPIED!' : 'SHARE'}
+          </button>
+        </div>
 
         {/* Answers Recap */}
         {answers && answers.length > 0 && (
@@ -638,39 +710,30 @@ const ResultScreen = ({ score, totalAnswered, onRestart, answers, nsfw }) => {
                       {answer.actress.firstName} {answer.actress.lastName}
                     </p>
                     <div className="flex gap-2 mt-1">
-                      {answer.actress.onlyfans && (
-                        <a 
-                          href={answer.actress.onlyfans} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="text-xs px-2 py-0.5 bg-sky-100 text-sky-600 rounded-full hover:bg-sky-200 transition-colors"
-                          onClick={() => analytics.socialLinkClicked('onlyfans', answer.actress.id)}
-                        >
-                          OF
-                        </a>
-                      )}
-                      {answer.actress.instagram && (
-                        <a 
-                          href={answer.actress.instagram} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="text-xs px-2 py-0.5 bg-pink-100 text-pink-600 rounded-full hover:bg-pink-200 transition-colors"
-                          onClick={() => analytics.socialLinkClicked('instagram', answer.actress.id)}
-                        >
-                          IG
-                        </a>
-                      )}
-                      {answer.actress.twitter && (
-                        <a 
-                          href={answer.actress.twitter} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="text-xs px-2 py-0.5 bg-stone-100 text-stone-600 rounded-full hover:bg-stone-200 transition-colors"
-                          onClick={() => analytics.socialLinkClicked('twitter', answer.actress.id)}
-                        >
-                          X
-                        </a>
-                      )}
+                      <SocialLink
+                        href={answer.actress.onlyfans}
+                        platform="onlyfans"
+                        actressId={answer.actress.id}
+                        label="OF"
+                        activeClass="bg-sky-100 text-sky-600 hover:bg-sky-200"
+                        inactiveClass="bg-stone-100 text-stone-400 hover:bg-stone-200 cursor-pointer"
+                      />
+                      <SocialLink
+                        href={answer.actress.instagram}
+                        platform="instagram"
+                        actressId={answer.actress.id}
+                        label="IG"
+                        activeClass="bg-pink-100 text-pink-600 hover:bg-pink-200"
+                        inactiveClass="bg-stone-100 text-stone-400 hover:bg-stone-200 cursor-pointer"
+                      />
+                      <SocialLink
+                        href={answer.actress.twitter}
+                        platform="twitter"
+                        actressId={answer.actress.id}
+                        label="X"
+                        activeClass="bg-stone-200 text-stone-700 hover:bg-stone-300"
+                        inactiveClass="bg-stone-100 text-stone-400 hover:bg-stone-200 cursor-pointer"
+                      />
                     </div>
                   </div>
                   
@@ -722,6 +785,40 @@ const ResultScreen = ({ score, totalAnswered, onRestart, answers, nsfw }) => {
           )}
         </div>
       </div>
+
+      {/* Modal for missing link */}
+      {showMissingLinkModal && (
+        <div 
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={() => setShowMissingLinkModal(false)}
+        >
+          <div 
+            className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="text-center">
+              <div className="text-4xl mb-3">🤷‍♀️</div>
+              <h3 className="text-lg font-bold text-stone-800 mb-2">Link not found</h3>
+              <p className="text-stone-500 text-sm mb-4">
+                We don't have this link yet. If you know it, let us know!
+              </p>
+              <a 
+                href="mailto:contact@pornquiz.com"
+                className="inline-block px-6 py-2 bg-gradient-to-r from-pink-400 to-pink-500 rounded-xl font-bold text-white hover:opacity-90 transition-opacity mb-3"
+              >
+                contact@pornquiz.com
+              </a>
+              <br />
+              <button
+                onClick={() => setShowMissingLinkModal(false)}
+                className="text-stone-400 hover:text-stone-600 text-sm transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -775,10 +872,10 @@ export default function ActressQuiz() {
   };
 
   return (
-    <div className="min-h-screen bg-stone-100 text-stone-800 flex flex-col" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+    <div className="h-screen bg-stone-100 text-stone-800 flex flex-col overflow-hidden" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
       <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
       
-      <div className="flex-1">
+      <div className="flex-1 overflow-auto">
         {gameState === 'idle' && (
           <StartScreen 
             onStart={handleStart} 
@@ -813,7 +910,7 @@ export default function ActressQuiz() {
       </div>
 
       {/* Footer */}
-      <footer className="py-4 text-center text-stone-400 text-sm">
+      <footer className="flex-shrink-0 py-3 text-center text-stone-400 text-sm bg-stone-100 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
         <p>The Porn Quiz - 2026</p>
         <a href="mailto:contact@pornquiz.com" className="hover:text-pink-500 transition-colors">
           contact@pornquiz.com
