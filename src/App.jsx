@@ -1,32 +1,24 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-
-// Google Analytics 4 - Tracking functions
-const GA_MEASUREMENT_ID = 'G-8E3NPP7TVJ';
-
-const trackEvent = (eventName, params = {}) => {
-  if (typeof window !== 'undefined' && window.gtag) {
-    window.gtag('event', eventName, params);
-  }
-};
+import { track } from '@vercel/analytics';
 
 // Events tracking helpers
 const analytics = {
-  gameStarted: (nsfw) => trackEvent('game_started', { nsfw_mode: nsfw }),
-  gameEnded: (score, totalAnswered, duration) => trackEvent('game_ended', { 
+  gameStarted: (nsfw) => track('game_started', { nsfw_mode: nsfw }),
+  gameEnded: (score, totalAnswered, duration) => track('game_ended', { 
     score, 
     total_answered: totalAnswered,
     accuracy: totalAnswered > 0 ? Math.round((score / totalAnswered) * 100) : 0,
     duration_seconds: duration
   }),
-  gameStopped: (score, totalAnswered, timeLeft) => trackEvent('game_stopped', { 
+  gameStopped: (score, totalAnswered, timeLeft) => track('game_stopped', { 
     score, 
     total_answered: totalAnswered,
     time_remaining: timeLeft
   }),
-  correctAnswer: (actressId) => trackEvent('correct_answer', { actress_id: actressId }),
-  skipUsed: (actressId) => trackEvent('skip_used', { actress_id: actressId }),
-  newsletterSubscribed: () => trackEvent('newsletter_subscribed'),
-  socialLinkClicked: (platform, actressId) => trackEvent('social_link_clicked', { 
+  correctAnswer: (actressId) => track('correct_answer', { actress_id: actressId }),
+  skipUsed: (actressId) => track('skip_used', { actress_id: actressId }),
+  newsletterSubscribed: () => track('newsletter_subscribed'),
+  socialLinkClicked: (platform, actressId) => track('social_link_clicked', { 
     platform, 
     actress_id: actressId 
   }),
