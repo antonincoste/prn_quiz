@@ -528,8 +528,47 @@ const ResultScreen = ({ score, totalAnswered, onRestart, answers, nsfw }) => {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showMissingLinkModal, setShowMissingLinkModal] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const accuracy = totalAnswered > 0 ? Math.round((score / totalAnswered) * 100) : 0;
+
+  const handleShare = async () => {
+    const text = `🔞 The Porn Quiz\n\nI scored ${score} points with ${accuracy}% accuracy!\n\nCan you beat me? 👉 pornquiz.com`;
+    
+    analytics.socialLinkClicked('share', null);
+    
+    // Mobile only: native share (check for touch device)
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    
+    if (isMobile && navigator.share) {
+      try {
+        await navigator.share({ text });
+        return;
+      } catch (e) {
+        // User cancelled or error, fallback to clipboard
+      }
+    }
+    
+    // Desktop: copy to clipboard
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (e) {
+      // Fallback for older browsers
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.focus();
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
 
   const getMessage = () => {
     if (score >= 15) return { text: "LEGENDARY! 🔥", color: "from-pink-500 to-rose-500" };
@@ -639,21 +678,10 @@ const ResultScreen = ({ score, totalAnswered, onRestart, answers, nsfw }) => {
           </button>
           
           <button
-            onClick={() => {
-              const text = `🔞 The Porn Quiz\n\nI scored ${score} points with ${accuracy}% accuracy!\n\nCan you beat me? 👉 pornquiz.com`;
-              
-              if (navigator.share) {
-                navigator.share({ text });
-              } else {
-                navigator.clipboard.writeText(text);
-                alert('Copied to clipboard!');
-              }
-              
-              analytics.socialLinkClicked('share', null);
-            }}
+            onClick={handleShare}
             className="group relative px-6 py-4 bg-white border-2 border-pink-400 rounded-2xl font-bold text-lg text-pink-500 transform hover:scale-105 transition-all duration-300 hover:bg-pink-50"
           >
-            SHARE
+            {copied ? '✓ COPIED!' : 'SHARE'}
           </button>
         </div>
 
