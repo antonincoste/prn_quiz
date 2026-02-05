@@ -13,7 +13,7 @@ export default async function handler(request, response) {
     if (blonde === 'true' || brunette === 'true' || busty === 'true' || curvy === 'true') {
       result = await sql`
         SELECT 
-          id, first_name, last_name, image_url_1, image_url_2,
+          id, first_name, last_name, image_url_1, image_url_2, gif_url,
           is_blonde, is_brunette, is_busty, is_curvy,
           times_shown, times_guessed,
           onlyfans_url, instagram_url, twitter_url
@@ -30,7 +30,7 @@ export default async function handler(request, response) {
     } else {
       result = await sql`
         SELECT 
-          id, first_name, last_name, image_url_1, image_url_2,
+          id, first_name, last_name, image_url_1, image_url_2, gif_url,
           is_blonde, is_brunette, is_busty, is_curvy,
           times_shown, times_guessed,
           onlyfans_url, instagram_url, twitter_url
@@ -47,6 +47,7 @@ export default async function handler(request, response) {
       lastName: row.last_name,
       image: row.image_url_1,
       image2: row.image_url_2,
+      gif: row.gif_url,
       isBlonde: row.is_blonde,
       isBrunette: row.is_brunette,
       isBusty: row.is_busty,

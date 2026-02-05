@@ -1,1 +1,6 @@
-liya-silver: https://zyr8deck4vmce0lu.public.blob.vercel-storage.com/actresses/liya-silver.jpg
+bonnie-rotten: https://zyr8deck4vmce0lu.public.blob.vercel-storage.com/actresses/bonnie-rotten.jpg
+cara-saint-germain: https://zyr8deck4vmce0lu.public.blob.vercel-storage.com/actresses/cara-saint-germain.jpeg
+clea-gaultier: https://zyr8deck4vmce0lu.public.blob.vercel-storage.com/actresses/clea-gaultier.jpg
+oksana: https://zyr8deck4vmce0lu.public.blob.vercel-storage.com/actresses/oksana.jpg
+rae-lil-black: https://zyr8deck4vmce0lu.public.blob.vercel-storage.com/actresses/rae-lil-black.webp
+tiffany-doll: https://zyr8deck4vmce0lu.public.blob.vercel-storage.com/actresses/tiffany-doll.jpg

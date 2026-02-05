@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useFeature } from './useFeatures.jsx';
 
 // Google Analytics 4 - Tracking functions
 const trackEvent = (eventName, params = {}) => {
@@ -131,15 +132,27 @@ const useTimer = (initialTime, onEnd) => {
 };
 
 // Hook personnalisé pour la logique de jeu
-const useGame = () => {
+const useGame = (mode) => {
   const [gameState, setGameState] = useState('idle');
   const [score, setScore] = useState(0);
   const [currentActress, setCurrentActress] = useState(null);
   const [totalAnswered, setTotalAnswered] = useState(0);
-  const [actresses, setActresses] = useState([]);
+  const [allActresses, setAllActresses] = useState([]); // Toutes les actrices
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [answers, setAnswers] = useState([]); // Historique des réponses
+  
+  // Filtrer les actrices selon le mode
+  const actresses = (() => {
+    switch (mode) {
+      case 'nsfw':
+        return allActresses.filter(a => a.image2 && a.image2.trim() !== '');
+      case 'spicy':
+        return allActresses.filter(a => a.gif && a.gif.trim() !== '');
+      default: // 'sfw'
+        return allActresses;
+    }
+  })();
   
   // Utiliser useRef pour tracker les IDs de manière synchrone (évite les problèmes de state async)
   const usedActressIdsRef = useRef(new Set());
@@ -162,7 +175,7 @@ const useGame = () => {
         const data = await response.json();
         // Filtrer : garder seulement les actrices avec une image
         const actressesWithImages = data.actresses.filter(a => a.image && a.image.trim() !== '');
-        setActresses(actressesWithImages);
+        setAllActresses(actressesWithImages);
         setIsLoading(false);
       } catch (err) {
         // Fallback: import local en dev
@@ -170,7 +183,7 @@ const useGame = () => {
         try {
           const { ACTRESS_DB } = await import('./actress.js');
           const actressesWithImages = ACTRESS_DB.filter(a => a.image && a.image.trim() !== '');
-          setActresses(actressesWithImages);
+          setAllActresses(actressesWithImages);
           setIsLoading(false);
         } catch (importErr) {
           console.error('Error loading local data:', importErr);
@@ -302,7 +315,7 @@ const useGame = () => {
 };
 
 // Start screen component
-const StartScreen = ({ onStart, isLoading, error, nsfw, setNsfw }) => {
+const StartScreen = ({ onStart, isLoading, error, mode, setMode, actressCount, extraSpicyEnabled }) => {
   return (
     <div className="flex flex-col items-center justify-center h-full p-8 text-center relative overflow-hidden">
       {/* Background glow effects */}
@@ -325,19 +338,61 @@ const StartScreen = ({ onStart, isLoading, error, nsfw, setNsfw }) => {
           Name as many actresses as you can in <span className="text-pink-500 font-bold">60 seconds</span>
         </p>
 
-        {/* NSFW Toggle */}
-        <div className="mb-8 flex items-center gap-3">
-          <span className={`text-sm font-medium ${nsfw ? 'text-stone-400' : 'text-stone-600'}`}>SFW</span>
-          <button
-            onClick={() => setNsfw(!nsfw)}
-            className={`relative w-14 h-8 rounded-full transition-colors duration-300 ${nsfw ? 'bg-pink-500' : 'bg-stone-300'}`}
-          >
-            <div
-              className={`absolute top-1 w-6 h-6 bg-white rounded-full shadow-md transition-transform duration-300 ${nsfw ? 'translate-x-7' : 'translate-x-1'}`}
-            />
-          </button>
-          <span className={`text-sm font-medium ${nsfw ? 'text-pink-500' : 'text-stone-400'}`}>NSFW 🔞</span>
-        </div>
+        {/* Mode Toggle */}
+        {extraSpicyEnabled ? (
+          // Toggle à 3 options
+          <div className="mb-2 flex items-center gap-1 bg-stone-200 rounded-full p-1">
+            <button
+              onClick={() => setMode('sfw')}
+              className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                mode === 'sfw' 
+                  ? 'bg-white text-stone-800 shadow-sm' 
+                  : 'text-stone-500 hover:text-stone-700'
+              }`}
+            >
+              SFW
+            </button>
+            <button
+              onClick={() => setMode('nsfw')}
+              className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                mode === 'nsfw' 
+                  ? 'bg-pink-500 text-white shadow-sm' 
+                  : 'text-stone-500 hover:text-stone-700'
+              }`}
+            >
+              NSFW 🔞
+            </button>
+            <button
+              onClick={() => setMode('spicy')}
+              className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                mode === 'spicy' 
+                  ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-sm' 
+                  : 'text-stone-500 hover:text-stone-700'
+              }`}
+            >
+              EXTRA 🌶️
+            </button>
+          </div>
+        ) : (
+          // Toggle à 2 options (original)
+          <div className="mb-2 flex items-center gap-3">
+            <span className={`text-sm font-medium ${mode === 'nsfw' ? 'text-stone-400' : 'text-stone-600'}`}>SFW</span>
+            <button
+              onClick={() => setMode(mode === 'sfw' ? 'nsfw' : 'sfw')}
+              className={`relative w-14 h-8 rounded-full transition-colors duration-300 ${mode === 'nsfw' ? 'bg-pink-500' : 'bg-stone-300'}`}
+            >
+              <div
+                className={`absolute top-1 w-6 h-6 bg-white rounded-full shadow-md transition-transform duration-300 ${mode === 'nsfw' ? 'translate-x-7' : 'translate-x-1'}`}
+              />
+            </button>
+            <span className={`text-sm font-medium ${mode === 'nsfw' ? 'text-pink-500' : 'text-stone-400'}`}>NSFW 🔞</span>
+          </div>
+        )}
+        
+        {/* Actress count */}
+        <p className="text-stone-400 text-sm mb-8">
+          {actressCount} actresses available
+        </p>
 
         {error ? (
           <div className="p-4 bg-red-100 border border-red-300 rounded-xl mb-8">
@@ -373,15 +428,26 @@ const StartScreen = ({ onStart, isLoading, error, nsfw, setNsfw }) => {
 };
 
 // Game screen component
-const GameScreen = ({ actress, score, timeLeft, onSubmit, onSkip, onStop, nsfw }) => {
+const GameScreen = ({ actress, score, timeLeft, onSubmit, onSkip, onStop, mode }) => {
   const [input, setInput] = useState('');
   const [shake, setShake] = useState(false);
   const [flash, setFlash] = useState(false);
   const [imageError, setImageError] = useState(false);
   const inputRef = useRef(null);
 
-  // Choisir l'image selon le mode NSFW
-  const imageUrl = nsfw && actress?.image2 ? actress.image2 : actress?.image;
+  // Choisir l'image/gif selon le mode
+  const mediaUrl = (() => {
+    switch (mode) {
+      case 'spicy':
+        return actress?.gif || actress?.image2 || actress?.image;
+      case 'nsfw':
+        return actress?.image2 || actress?.image;
+      default:
+        return actress?.image;
+    }
+  })();
+  
+  const isGif = mode === 'spicy' && actress?.gif;
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -450,14 +516,14 @@ const GameScreen = ({ actress, score, timeLeft, onSubmit, onSkip, onStop, nsfw }
         </div>
       </div>
 
-      {/* Actress image */}
+      {/* Actress image/gif */}
       <div className="flex-1 flex flex-col items-center justify-center relative z-10">
         <div className="relative mb-8">
-          <div className="absolute inset-0 bg-pink-300/30 rounded-3xl blur-2xl transform scale-110" />
-          <div className="relative w-64 h-[358px] md:w-72 md:h-[403px] lg:w-80 lg:h-[448px] rounded-3xl overflow-hidden border-2 border-pink-300 shadow-[0_0_30px_rgba(244,114,182,0.2)] bg-stone-100">
-            {actress && !imageError && imageUrl ? (
+          <div className={`absolute inset-0 rounded-3xl blur-2xl transform scale-110 ${isGif ? 'bg-orange-300/30' : 'bg-pink-300/30'}`} />
+          <div className={`relative w-64 h-[358px] md:w-72 md:h-[403px] lg:w-80 lg:h-[448px] rounded-3xl overflow-hidden border-2 shadow-[0_0_30px_rgba(244,114,182,0.2)] bg-stone-100 ${isGif ? 'border-orange-400' : 'border-pink-300'}`}>
+            {actress && !imageError && mediaUrl ? (
               <img
-                src={imageUrl}
+                src={mediaUrl}
                 alt="Who is this actress?"
                 className="w-full h-full object-cover object-center"
                 onError={() => setImageError(true)}
@@ -476,15 +542,15 @@ const GameScreen = ({ actress, score, timeLeft, onSubmit, onSkip, onStop, nsfw }
         </div>
 
         {/* Input */}
-        <form onSubmit={handleSubmit} className="w-full max-w-md">
-          <div className={`relative ${shake ? 'animate-shake' : ''}`}>
+        <form onSubmit={handleSubmit} className="w-full max-w-md flex gap-2 items-center">
+          <div className={`relative flex-1 ${shake ? 'animate-shake' : ''}`}>
             <input
               ref={inputRef}
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder="Type the actress name..."
-              className="w-full px-6 py-4 bg-white border-2 border-stone-200 rounded-2xl text-stone-800 text-lg placeholder-stone-400 focus:outline-none focus:border-pink-400 focus:shadow-[0_0_20px_rgba(244,114,182,0.2)] transition-all"
+              className="w-full px-6 py-4 bg-white border-2 border-stone-200 rounded-2xl text-stone-800 text-lg placeholder-stone-400 focus:outline-none focus:border-pink-400 focus:shadow-[0_0_20px_rgba(244,114,182,0.2)] transition-all pr-20"
               autoComplete="off"
               autoCorrect="off"
               spellCheck="false"
@@ -496,15 +562,16 @@ const GameScreen = ({ actress, score, timeLeft, onSubmit, onSkip, onStop, nsfw }
               OK
             </button>
           </div>
+          
+          {/* Skip button */}
+          <button
+            type="button"
+            onClick={onSkip}
+            className="px-5 py-4 bg-stone-200 hover:bg-stone-300 rounded-2xl text-stone-600 font-medium transition-colors"
+          >
+            Skip
+          </button>
         </form>
-
-        {/* Skip button */}
-        <button
-          onClick={onSkip}
-          className="mt-4 text-stone-400 hover:text-pink-500 transition-colors text-sm"
-        >
-          Skip →
-        </button>
       </div>
 
       <style>{`
@@ -522,7 +589,7 @@ const GameScreen = ({ actress, score, timeLeft, onSubmit, onSkip, onStop, nsfw }
 };
 
 // Result screen component with newsletter
-const ResultScreen = ({ score, totalAnswered, onRestart, answers, nsfw }) => {
+const ResultScreen = ({ score, totalAnswered, onRestart, answers, mode }) => {
   const [email, setEmail] = useState('');
   const [subscribed, setSubscribed] = useState(false);
   const [error, setError] = useState('');
@@ -698,7 +765,11 @@ const ResultScreen = ({ score, totalAnswered, onRestart, answers, nsfw }) => {
                   {/* Photo - format 5:7 comme le quiz */}
                   <div className="w-14 h-[78px] rounded-lg overflow-hidden flex-shrink-0 bg-stone-100">
                     <img 
-                      src={nsfw && answer.actress.image2 ? answer.actress.image2 : answer.actress.image} 
+                      src={
+                        mode === 'spicy' && answer.actress.gif ? answer.actress.gif :
+                        mode === 'nsfw' && answer.actress.image2 ? answer.actress.image2 :
+                        answer.actress.image
+                      } 
                       alt=""
                       className="w-full h-full object-cover object-center"
                     />
@@ -825,6 +896,9 @@ const ResultScreen = ({ score, totalAnswered, onRestart, answers, nsfw }) => {
 
 // Main component
 export default function ActressQuiz() {
+  const [mode, setMode] = useState('sfw'); // 'sfw' | 'nsfw' | 'spicy'
+  const { isEnabled: extraSpicyEnabled } = useFeature('extra_spicy');
+  
   const {
     gameState,
     score,
@@ -838,10 +912,9 @@ export default function ActressQuiz() {
     endGame,
     submitAnswer,
     skipActress,
-  } = useGame();
+  } = useGame(mode);
 
   const { timeLeft, start: startTimer, stop: stopTimer } = useTimer(60, endGame);
-  const [nsfw, setNsfw] = useState(false);
   const gameStartTimeRef = useRef(null);
   const hasTrackedEndRef = useRef(false);
 
@@ -861,7 +934,7 @@ export default function ActressQuiz() {
     startGame();
     startTimer();
     gameStartTimeRef.current = Date.now();
-    analytics.gameStarted(nsfw);
+    analytics.gameStarted(mode);
   };
 
   const handleStop = () => {
@@ -881,8 +954,10 @@ export default function ActressQuiz() {
             onStart={handleStart} 
             isLoading={isLoading} 
             error={error}
-            nsfw={nsfw}
-            setNsfw={setNsfw}
+            mode={mode}
+            setMode={setMode}
+            actressCount={actresses.length}
+            extraSpicyEnabled={extraSpicyEnabled}
           />
         )}
         
@@ -894,7 +969,7 @@ export default function ActressQuiz() {
             onSubmit={submitAnswer}
             onSkip={skipActress}
             onStop={handleStop}
-            nsfw={nsfw}
+            mode={mode}
           />
         )}
         
@@ -904,7 +979,7 @@ export default function ActressQuiz() {
             totalAnswered={totalAnswered}
             onRestart={handleStart}
             answers={answers}
-            nsfw={nsfw}
+            mode={mode}
           />
         )}
       </div>
