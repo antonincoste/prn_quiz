@@ -314,8 +314,95 @@ const useGame = (mode) => {
   };
 };
 
+// Difficulty Slider Component (draggable)
+const DifficultySlider = ({ difficulty, setDifficulty }) => {
+  const sliderRef = useRef(null);
+  const [isDragging, setIsDragging] = useState(false);
+
+  const getDifficultyFromPosition = (clientX) => {
+    if (!sliderRef.current) return 'medium';
+    
+    const rect = sliderRef.current.getBoundingClientRect();
+    const percentage = (clientX - rect.left) / rect.width;
+    
+    if (percentage < 0.33) return 'easy';
+    if (percentage < 0.66) return 'medium';
+    return 'hard';
+  };
+
+  const handleMove = useCallback((clientX) => {
+    setDifficulty(getDifficultyFromPosition(clientX));
+  }, [setDifficulty]);
+
+  const handleEnd = useCallback(() => {
+    setIsDragging(false);
+  }, []);
+
+  // Mouse events
+  const onMouseDown = (e) => {
+    setIsDragging(true);
+    handleMove(e.clientX);
+  };
+
+  // Touch events
+  const onTouchStart = (e) => {
+    setIsDragging(true);
+    handleMove(e.touches[0].clientX);
+  };
+
+  // Global listeners pour drag
+  useEffect(() => {
+    if (!isDragging) return;
+
+    const onMouseMove = (e) => handleMove(e.clientX);
+    const onTouchMove = (e) => handleMove(e.touches[0].clientX);
+
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('touchmove', onTouchMove);
+    window.addEventListener('mouseup', handleEnd);
+    window.addEventListener('touchend', handleEnd);
+
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('touchmove', onTouchMove);
+      window.removeEventListener('mouseup', handleEnd);
+      window.removeEventListener('touchend', handleEnd);
+    };
+  }, [isDragging, handleMove, handleEnd]);
+
+  const thumbPosition = difficulty === 'easy' ? '16.66%' : difficulty === 'medium' ? '50%' : '83.33%';
+  const thumbColor = difficulty === 'easy' ? 'bg-green-500' : difficulty === 'medium' ? 'bg-pink-500' : 'bg-red-500';
+
+  return (
+    <div className="mb-2 mt-4 w-full max-w-xs select-none">
+      <div className="flex justify-between text-xs text-stone-400 mb-2">
+        <span className={difficulty === 'easy' ? 'text-green-500 font-medium' : ''}>Easy</span>
+        <span className={difficulty === 'medium' ? 'text-pink-500 font-medium' : ''}>Medium</span>
+        <span className={difficulty === 'hard' ? 'text-red-500 font-medium' : ''}>Hard</span>
+      </div>
+      <div 
+        ref={sliderRef}
+        className="relative h-8 flex items-center cursor-pointer"
+        onMouseDown={onMouseDown}
+        onTouchStart={onTouchStart}
+      >
+        {/* Track */}
+        <div className="absolute left-0 right-0 h-2 bg-stone-200 rounded-full">
+          <div className="absolute inset-0 rounded-full bg-gradient-to-r from-green-400 via-pink-400 to-red-500 opacity-30" />
+        </div>
+        
+        {/* Thumb */}
+        <div 
+          className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-6 h-6 rounded-full shadow-lg transition-all ${isDragging ? 'scale-110' : ''} ${thumbColor}`}
+          style={{ left: thumbPosition }}
+        />
+      </div>
+    </div>
+  );
+};
+
 // Start screen component
-const StartScreen = ({ onStart, isLoading, error, mode, setMode, actressCount, extraSpicyEnabled }) => {
+const StartScreen = ({ onStart, isLoading, error, mode, setMode, difficulty, setDifficulty, actressCount, extraSpicyEnabled, difficultyEnabled }) => {
   return (
     <div className="flex flex-col items-center justify-center h-full p-8 text-center relative overflow-hidden">
       {/* Background glow effects */}
@@ -388,6 +475,11 @@ const StartScreen = ({ onStart, isLoading, error, mode, setMode, actressCount, e
             <span className={`text-sm font-medium ${mode === 'nsfw' ? 'text-pink-500' : 'text-stone-400'}`}>NSFW 🔞</span>
           </div>
         )}
+
+        {/* Difficulty Slider */}
+        {difficultyEnabled && (
+          <DifficultySlider difficulty={difficulty} setDifficulty={setDifficulty} />
+        )}
         
         {/* Actress count */}
         <p className="text-stone-400 text-sm mb-8">
@@ -447,7 +539,7 @@ const GameScreen = ({ actress, score, timeLeft, onSubmit, onSkip, onStop, mode }
     }
   })();
   
-  const isGif = mode === 'spicy' && actress?.gif;
+  const isSpicy = mode === 'spicy' && actress?.gif;
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -516,27 +608,55 @@ const GameScreen = ({ actress, score, timeLeft, onSubmit, onSkip, onStop, mode }
         </div>
       </div>
 
-      {/* Actress image/gif */}
+      {/* Actress image/video */}
       <div className="flex-1 flex flex-col items-center justify-center relative z-10">
         <div className="relative mb-8">
-          <div className={`absolute inset-0 rounded-3xl blur-2xl transform scale-110 ${isGif ? 'bg-orange-300/30' : 'bg-pink-300/30'}`} />
-          <div className={`relative w-64 h-[358px] md:w-72 md:h-[403px] lg:w-80 lg:h-[448px] rounded-3xl overflow-hidden border-2 shadow-[0_0_30px_rgba(244,114,182,0.2)] bg-stone-100 ${isGif ? 'border-orange-400' : 'border-pink-300'}`}>
-            {actress && !imageError && mediaUrl ? (
-              <img
-                src={mediaUrl}
-                alt="Who is this actress?"
-                className="w-full h-full object-cover object-center"
-                onError={() => setImageError(true)}
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center text-6xl bg-stone-100">
-                💋
-              </div>
-            )}
-            {/* Blur overlay to hide watermarks */}
-            <div className="absolute bottom-0 left-0 right-0 h-4 backdrop-blur-[3px] bg-gradient-to-t from-stone-100/80 to-transparent pointer-events-none" />
-          </div>
-          <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-white px-4 py-1 rounded-full text-sm text-pink-500 border border-pink-300 shadow-sm">
+          <div className={`absolute inset-0 rounded-3xl blur-2xl transform scale-110 ${isSpicy ? 'bg-orange-300/30' : 'bg-pink-300/30'}`} />
+          
+          {isSpicy ? (
+            // Mode Spicy: Video 16/9
+            <div className="relative w-80 md:w-96 lg:w-[28rem] aspect-video rounded-3xl overflow-hidden border-2 border-orange-400 shadow-[0_0_30px_rgba(251,146,60,0.3)] bg-stone-900">
+              {actress && !imageError && mediaUrl ? (
+                <video
+                  key={mediaUrl}
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  className="w-full h-full object-cover"
+                  onError={() => setImageError(true)}
+                >
+                  <source src={mediaUrl} type="video/mp4" />
+                </video>
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-6xl bg-stone-900">
+                  🌶️
+                </div>
+              )}
+              {/* Dégradé pour masquer les watermarks */}
+              <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-stone-900 to-transparent pointer-events-none" />
+            </div>
+          ) : (
+            // Mode SFW/NSFW: Image 5/7
+            <div className={`relative w-64 h-[358px] md:w-72 md:h-[403px] lg:w-80 lg:h-[448px] rounded-3xl overflow-hidden border-2 border-pink-300 shadow-[0_0_30px_rgba(244,114,182,0.2)] bg-stone-100`}>
+              {actress && !imageError && mediaUrl ? (
+                <img
+                  src={mediaUrl}
+                  alt="Who is this actress?"
+                  className="w-full h-full object-cover object-center"
+                  onError={() => setImageError(true)}
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-6xl bg-stone-100">
+                  💋
+                </div>
+              )}
+              {/* Blur overlay to hide watermarks */}
+              <div className="absolute bottom-0 left-0 right-0 h-4 backdrop-blur-[3px] bg-gradient-to-t from-stone-100/80 to-transparent pointer-events-none" />
+            </div>
+          )}
+          
+          <div className={`absolute -bottom-3 left-1/2 -translate-x-1/2 bg-white px-4 py-1 rounded-full text-sm border shadow-sm ${isSpicy ? 'text-orange-500 border-orange-300' : 'text-pink-500 border-pink-300'}`}>
             Who is she?
           </div>
         </div>
@@ -757,23 +877,39 @@ const ResultScreen = ({ score, totalAnswered, onRestart, answers, mode }) => {
           <div className="w-full mb-6">
             <h3 className="text-lg font-bold text-stone-800 mb-3 text-center">Your answers</h3>
             <div className="bg-white/80 backdrop-blur rounded-2xl border border-pink-200 shadow-[0_0_20px_rgba(244,114,182,0.1)] max-h-80 overflow-y-auto">
-              {answers.map((answer, index) => (
-                <div 
-                  key={index}
-                  className={`flex items-center gap-3 p-3 ${index !== answers.length - 1 ? 'border-b border-stone-100' : ''}`}
-                >
-                  {/* Photo - format 5:7 comme le quiz */}
-                  <div className="w-14 h-[78px] rounded-lg overflow-hidden flex-shrink-0 bg-stone-100">
-                    <img 
-                      src={
-                        mode === 'spicy' && answer.actress.gif ? answer.actress.gif :
-                        mode === 'nsfw' && answer.actress.image2 ? answer.actress.image2 :
-                        answer.actress.image
-                      } 
-                      alt=""
-                      className="w-full h-full object-cover object-center"
-                    />
-                  </div>
+              {answers.map((answer, index) => {
+                const isSpicyAnswer = mode === 'spicy' && answer.actress.gif;
+                const mediaSrc = isSpicyAnswer ? answer.actress.gif :
+                  mode === 'nsfw' && answer.actress.image2 ? answer.actress.image2 :
+                  answer.actress.image;
+                
+                return (
+                  <div 
+                    key={index}
+                    className={`flex items-center gap-3 p-3 ${index !== answers.length - 1 ? 'border-b border-stone-100' : ''}`}
+                  >
+                    {/* Photo/Video */}
+                    {isSpicyAnswer ? (
+                      <div className="w-20 h-[45px] rounded-lg overflow-hidden flex-shrink-0 bg-stone-900">
+                        <video
+                          autoPlay
+                          loop
+                          muted
+                          playsInline
+                          className="w-full h-full object-cover"
+                        >
+                          <source src={mediaSrc} type="video/mp4" />
+                        </video>
+                      </div>
+                    ) : (
+                      <div className="w-14 h-[78px] rounded-lg overflow-hidden flex-shrink-0 bg-stone-100">
+                        <img 
+                          src={mediaSrc} 
+                          alt=""
+                          className="w-full h-full object-cover object-center"
+                        />
+                      </div>
+                    )}
                   
                   {/* Name + Social Links */}
                   <div className="flex-1 text-left">
@@ -813,7 +949,8 @@ const ResultScreen = ({ score, totalAnswered, onRestart, answers, mode }) => {
                     {answer.correct ? '✓' : '✗'}
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
@@ -897,7 +1034,9 @@ const ResultScreen = ({ score, totalAnswered, onRestart, answers, mode }) => {
 // Main component
 export default function ActressQuiz() {
   const [mode, setMode] = useState('sfw'); // 'sfw' | 'nsfw' | 'spicy'
+  const [difficulty, setDifficulty] = useState('medium'); // 'easy' | 'medium' | 'hard'
   const { isEnabled: extraSpicyEnabled } = useFeature('extra_spicy');
+  const { isEnabled: difficultyEnabled } = useFeature('difficulty');
   
   const {
     gameState,
@@ -956,8 +1095,11 @@ export default function ActressQuiz() {
             error={error}
             mode={mode}
             setMode={setMode}
+            difficulty={difficulty}
+            setDifficulty={setDifficulty}
             actressCount={actresses.length}
             extraSpicyEnabled={extraSpicyEnabled}
+            difficultyEnabled={difficultyEnabled}
           />
         )}
         
